@@ -23,14 +23,30 @@
 // esp32 includes
 
 // project includes
+#include "InternetSimplistTypes.hpp"
 
-/** @brief What the class is for.
+/** @brief Interface to implement to react to getting/losing a host configuration.
+ * 
+ * e.g. when getting a host configuration, accessing a resource through the network.
  */
 class HostConfigurationEventListener {
     private:
 
     public:
         virtual ~HostConfigurationEventListener() ;
+
+        /**
+         * @brief Event received when obtaining a host configuration.
+         * 
+         * @param configuration the configuration (ip address, ...).
+         */
+        virtual void onGotConfiguration(HostConfigurationDescription* configuration) = 0 ;
+
+        /**
+         * @brief Previously received configuration is now invalid (destroyed).
+         * 
+         */
+        virtual void onLostConfiguration() = 0 ;
 
 } ;
 
