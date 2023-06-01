@@ -33,12 +33,30 @@ public:
       uint8_t size = WifiCredentialsRegistry::DEFAULT_MAX_SIZE)
       : maxSize(size) {}
   virtual ~WifiCredentialsRegistry();
+
   // enumeration interface.
+  /**
+   * @brief Enumeration interface -- go back to the begining of the sequence.
+   * 
+   * @return WifiCredentialsRegistry* this registry, to be able to chain with another call.
+   */
   WifiCredentialsRegistry* rewind() ;
+  /**
+   * @brief Enumeration interface -- ask whether there will be another element.
+   * 
+   * @return true when call to `next()` will not return `null`
+   */
   bool hasNext() ;
+  /**
+   * @brief Enumeration interface -- get the next element.
+   * 
+   * @return WifiCredentials* the next element, or `null` if the enumeration is finished.
+   */
   WifiCredentials* next() ;
   // update interface
-  put(WifiCredentials credentials) ;
+  WifiCredentialsRegistry*  put(WifiCredentials *credentials) ;
+  WifiCredentialsRegistry*  remove(WifiCredentials *credentials) ;
+  WifiCredentialsRegistry*  setPreferred(WifiCredentials *credentials) ;
 };
 
 #endif
