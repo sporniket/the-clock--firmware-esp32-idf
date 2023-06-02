@@ -110,6 +110,22 @@ public:
    * @return const WifiKeyType the type.
    */
   const WifiKeyType getKeyType() { return keyType; }
+
+  /**
+   * @brief Change the type of key.
+   *
+   * @param newKeyType the new type of key.
+   */
+  void setKeyType(WifiKeyType newKeyType) { keyType = newKeyType; }
+
+  /**
+   * @brief Set the new key.
+   *
+   * @param newKey the new key value to copy from.
+   */
+  void setKey(const uint8_t *newKey) {
+    memcpy(key, newKey, MAX_LENGTH_OF_KEYPASS);
+  }
 };
 
 #endif

@@ -59,19 +59,19 @@ private:
    *
    * @param query the entry to keep untouched.
    */
-  void moveRankUpExcept(WifiCredentials *query);
+  void moveRankDownExcept(WifiCredentials *query);
   /**
    * @brief Rank of each entry from the first to the provided one (excluded) is incremented.
    * 
    * @param query the entry from which to stop.
    */
-  void moveRankUpUntil(WifiCredentials *query);
+  void moveRankDownUntil(WifiCredentials *query);
   /**
    * @brief Rank of each entry starting from the provided one (excluded) is decremented.
    * 
    * @param query 
    */
-  void moveRankDownAfter(WifiCredentials *query);
+  void moveRankUpAfter(WifiCredentials *query);
   /**
    * @brief Sort the entries by rank, and regenerate the enumeration.
    */
