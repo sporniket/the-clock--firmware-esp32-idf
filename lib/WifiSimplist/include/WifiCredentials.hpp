@@ -1,0 +1,82 @@
+// Copyright 2023 David SPORN
+// ---
+// This file is part of 'Wifi Simplist'.
+// ---
+// 'Wifi Simplist' is free software: you can redistribute it and/or
+// modify it under the terms of the GNU General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// 'Wifi Simplist' is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+// Public License for more details.
+
+// You should have received a copy of the GNU General Public License along
+// with 'Wifi Simplist'. If not, see <https://www.gnu.org/licenses/>. 
+#ifndef WIFI_CREDENTIALS_HPP
+#define WIFI_CREDENTIALS_HPP
+
+// standard includes
+#include <algorithm>
+#include <cstdint>
+#include <iterator>
+#include <ranges>
+#include <cstring>
+
+// esp32 includes
+
+// project includes
+#include "WifiSimplistTypes.hpp"
+
+/**
+ * @brief Description of a wifi credentials item to be put in a registry of
+ * credentials.
+ */
+class WifiCredentials {
+private:
+  /**
+   * @brief A preference ranking, to be used as a sorting key.
+   */
+  uint8_t rank;
+  /**
+   * @brief The wifi network ssid.
+   */
+  uint8_t ssid[MAX_LENGTH_OF_SSID];
+  /**
+   * @brief What kind of key is stored, some implementation distinguish between
+   * password and pre-shared key.
+   */
+  WifiKeyType keyType;
+  /**
+   * @brief The key to authenticate on the wifi network.
+   */
+  uint8_t key[MAX_LENGTH_OF_KEYPASS];
+
+public:
+  /**
+   * @brief Comparator by rank.
+   *
+   * @param wc1 the left hand side
+   * @param wc2 the right hand side.
+   * @return true if the left hand side is before the right hand side.
+   */
+  static bool compareByRank(WifiCredentials *wc1, WifiCredentials *wc2) {
+    return wc1->rank < wc2->rank;
+  }
+
+  virtual ~WifiCredentials();
+  WifiCredentials(uint8_t *credentialSsid, uint8_t *credentialKey,
+                  WifiKeyType credentialKeyType, uint8_t credentialRank = 0);
+  WifiCredentials(WifiCredentials &wc);
+
+  /**
+   * @brief Compare the SSID.
+   *
+   * @param other the other credentials to compare.
+   * @return true if both SSIDs are the same.
+   */
+  bool isSameSsid(WifiCredentials *other);
+};
+
+#endif
