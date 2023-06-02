@@ -35,14 +35,14 @@ public:
    *
    * @param recipient the registry to update.
    */
-  virtual loadInto(const WifiCredentialsRegistry *recipient) = 0;
+  virtual void loadInto(const WifiCredentialsRegistry *recipient) = 0;
 
   /**
    * @brief Extract the entries of the provided registry and save them.
    *
    * @param source
    */
-  virtual saveFrom(const WifiCredentialsRegistry *const source) = 0;
+  virtual void saveFrom(const WifiCredentialsRegistry *const source) = 0;
 };
 
 #endif
