@@ -43,27 +43,4 @@ enum WifiKeyType {
   PRESHAREDKEY
 };
 
-/**
- * @brief Description of a wifi credentials item to be put in a registry of
- * credentials.
- */
-typedef struct {
-  /**
-   * @brief A preference ranking, to be used as a sorting key.
-   */
-  uint8_t rank;
-  /**
-   * @brief The wifi network ssid.
-   */
-  uint8_t ssid[MAX_LENGTH_OF_SSID];
-  /**
-   * @brief What kind of key is stored, some implementation distinguish between password and pre-shared key.
-   */
-  WifiKeyType keyType;
-  /**
-   * @brief The key to authenticate on the wifi network.
-   */
-  uint8_t key[MAX_LENGTH_OF_KEYPASS];
-} WifiCredentials;
-
 #endif

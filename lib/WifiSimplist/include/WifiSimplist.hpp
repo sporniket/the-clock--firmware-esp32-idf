@@ -24,6 +24,9 @@
 
 // project includes
 #include "WifiSimplistTypes.hpp"
+#include "WifiCredentials.hpp"
+#include "WifiCredentialsRegistry.hpp"
+#include "WifiCredentialsRegistryDao.hpp"
 
 //write code here
 
