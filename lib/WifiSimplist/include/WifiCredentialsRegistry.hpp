@@ -2,17 +2,17 @@
 // ---
 // This file is part of 'Wifi Simplist'.
 // ---
-// 'Wifi Simplist' is free software: you can redistribute it and/or 
-// modify it under the terms of the GNU General Public License as published 
-// by the Free Software Foundation, either version 3 of the License, or 
+// 'Wifi Simplist' is free software: you can redistribute it and/or
+// modify it under the terms of the GNU General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// 'Wifi Simplist' is distributed in the hope that it will be useful, 
-// but WITHOUT ANY WARRANTY; without even the implied warranty of 
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General 
+// 'Wifi Simplist' is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
 // Public License for more details.
 
-// You should have received a copy of the GNU General Public License along 
+// You should have received a copy of the GNU General Public License along
 // with 'Wifi Simplist'. If not, see <https://www.gnu.org/licenses/>. 
 #ifndef WIFI_CREDENTIALS_REGISTRY_HPP
 #define WIFI_CREDENTIALS_REGISTRY_HPP
@@ -24,8 +24,8 @@
 // esp32 includes
 
 // project includes
-#include "WifiSimplistTypes.hpp"
 #include "WifiCredentials.hpp"
+#include "WifiSimplistTypes.hpp"
 
 /** @brief Maintains a list of wifi credentials, sorted by a preference rank.
  * The preference criterion is "latest known good (connected to) network". The
@@ -61,27 +61,36 @@ private:
    */
   void moveRankDownExcept(WifiCredentials *query);
   /**
-   * @brief Rank of each entry from the first to the provided one (excluded) is incremented.
-   * 
+   * @brief Rank of each entry from the first to the provided one (excluded) is
+   * incremented.
+   *
    * @param query the entry from which to stop.
    */
   void moveRankDownUntil(WifiCredentials *query);
   /**
-   * @brief Rank of each entry starting from the provided one (excluded) is decremented.
-   * 
-   * @param query 
+   * @brief Rank of each entry starting from the provided one (excluded) is
+   * decremented.
+   *
+   * @param query
    */
   void moveRankUpAfter(WifiCredentials *query);
   /**
    * @brief Sort the entries by rank, and regenerate the enumeration.
    */
-  void rearrange() ;
+  void rearrange();
 
 public:
   WifiCredentialsRegistry(
       uint8_t size = WifiCredentialsRegistry::DEFAULT_MAX_SIZE)
       : maxSize(size) {}
   virtual ~WifiCredentialsRegistry();
+  // query interface
+  /**
+   * @brief Get the size (number of entries) of the registry.
+   * 
+   * @return uint8_t the size.
+   */
+  uint8_t getSize() { return registry.size(); }
 
   // enumeration interface.
   /**
