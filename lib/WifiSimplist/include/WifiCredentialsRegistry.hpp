@@ -76,16 +76,6 @@ private:
    * @brief Sort the entries by rank, and regenerate the enumeration.
    */
   void rearrange() ;
-  /**
-   * @brief Comparator to sort the entries by rank.
-   * 
-   * @param e1 the left hand side
-   * @param e2 the right hand side.
-   * @return true if the left hand side is before the right hand side.
-   */
-  static bool compareEntriesByRank(WifiCredentials* e1, WifiCredentials* e2) {
-    return e1->rank < e2->rank ;
-  }
 
 public:
   WifiCredentialsRegistry(

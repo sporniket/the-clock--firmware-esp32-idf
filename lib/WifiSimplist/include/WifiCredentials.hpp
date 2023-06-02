@@ -20,9 +20,9 @@
 // standard includes
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <iterator>
 #include <ranges>
-#include <cstring>
 
 // esp32 includes
 
@@ -31,7 +31,7 @@
 
 /**
  * @brief Description of a wifi credentials item to be put in a registry of
- * credentials.
+ * credentials. A credentials is ranked, 0 being the best.
  */
 class WifiCredentials {
 private:
@@ -77,6 +77,39 @@ public:
    * @return true if both SSIDs are the same.
    */
   bool isSameSsid(WifiCredentials *other);
+
+  /**
+   * @brief Make this credential one-step better ranked.
+   */
+  void rankUp() { --rank; };
+
+  /**
+   * @brief Make this credential one-step worse ranked.
+   */
+  void rankDown() { ++rank; };
+  /**
+   * @brief Make this credential the best ranked one.
+   */
+  void rankFirst() { rank = 0; };
+
+  /**
+   * @brief Get the Ssid.
+   *
+   * @return uint8_t* const the ssid.
+   */
+  uint8_t *const getSsid() { return ssid; }
+  /**
+   * @brief Get the Key.
+   *
+   * @return uint8_t* const the key.
+   */
+  uint8_t *const getKey() { return key; }
+  /**
+   * @brief Get the Key type.
+   *
+   * @return const WifiKeyType the type.
+   */
+  const WifiKeyType getKeyType() { return keyType; }
 };
 
 #endif

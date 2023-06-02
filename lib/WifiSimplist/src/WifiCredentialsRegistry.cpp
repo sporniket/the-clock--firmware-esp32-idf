@@ -70,7 +70,7 @@ void WifiCredentialsRegistry::moveRankDownAfter(WifiCredentials *query) {
 }
 
 void WifiCredentialsRegistry::rearrange() {
-  std::sort(registry.begin(), registry.end(), compareEntriesByRank);
+  std::sort(registry.begin(), registry.end(), WifiCredentials::compareByRank);
   rewind();
 }
 
