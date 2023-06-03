@@ -42,7 +42,7 @@ void test_simpleConstructor() {
   TEST_ASSERT_EQUAL_UINT8_ARRAY(dummySsid, test.getSsid(), MAX_LENGTH_OF_SSID);
   TEST_ASSERT_TRUE(dummySsid != test.getSsid());
   TEST_ASSERT_EQUAL_UINT8_ARRAY(dummyKey, test.getKey(), MAX_LENGTH_OF_KEYPASS);
-  TEST_ASSERT_TRUE(dummySsid != test.getSsid());
+  TEST_ASSERT_TRUE(dummyKey != test.getKey());
 }
 
 void test_copyConstructor() {
@@ -51,8 +51,10 @@ void test_copyConstructor() {
   TEST_ASSERT_EQUAL_INT(WifiKeyType::PASSWORD, test.getKeyType());
   TEST_ASSERT_EQUAL_UINT8_ARRAY(dummySsid, test.getSsid(), MAX_LENGTH_OF_SSID);
   TEST_ASSERT_TRUE(dummySsid != test.getSsid());
+  TEST_ASSERT_TRUE(dummy.getSsid() != test.getSsid());
   TEST_ASSERT_EQUAL_UINT8_ARRAY(dummyKey, test.getKey(), MAX_LENGTH_OF_KEYPASS);
   TEST_ASSERT_TRUE(dummyKey != test.getKey());
+  TEST_ASSERT_TRUE(dummy.getKey() != test.getKey());
 
   // verify queries between instances
   TEST_ASSERT_TRUE(shouldHaveSameRank(&test, &dummy));
