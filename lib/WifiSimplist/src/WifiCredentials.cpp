@@ -29,12 +29,14 @@ bool WifiCredentials::isSameSsid(WifiCredentials *other) {
 WifiCredentials::WifiCredentials(uint8_t credentialSsid[MAX_LENGTH_OF_SSID],
                                  uint8_t credentialKey[MAX_LENGTH_OF_KEYPASS],
                                  WifiKeyType credentialKeyType,
-                                 uint8_t credentialRank = 0)
+                                 uint8_t credentialRank)
     : keyType(credentialKeyType), rank(credentialRank) {
   memcpy(ssid, credentialSsid, MAX_LENGTH_OF_SSID);
   memcpy(key, credentialKey, MAX_LENGTH_OF_KEYPASS);
 }
-WifiCredentials::WifiCredentials(WifiCredentials &wc) : keyType(wc.keyType), rank(wc.rank){
+
+WifiCredentials::WifiCredentials(WifiCredentials &wc)
+    : keyType(wc.keyType), rank(wc.rank) {
   memcpy(ssid, wc.ssid, MAX_LENGTH_OF_SSID);
   memcpy(key, wc.key, MAX_LENGTH_OF_KEYPASS);
 }
