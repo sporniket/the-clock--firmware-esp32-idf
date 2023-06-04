@@ -87,7 +87,7 @@ public:
   // query interface
   /**
    * @brief Get the size (number of entries) of the registry.
-   * 
+   *
    * @return uint8_t the size.
    */
   uint8_t getSize() { return registry.size(); }
@@ -115,11 +115,8 @@ public:
    * @return WifiCredentials* the next element, or `nullptr` if the enumeration
    * is finished.
    */
-  WifiCredentials *const next() {
-    WifiCredentials *result = *registryIterator;
-    registryIterator++;
-    return result;
-  }
+  WifiCredentials *const next() ;
+  
   // update interface
   /**
    * @brief Registers new credentials, or an update of existing credentials

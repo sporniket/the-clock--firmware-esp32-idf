@@ -70,12 +70,21 @@ void WifiCredentialsRegistry::moveRankUpAfter(WifiCredentials *query) {
 
 void WifiCredentialsRegistry::rearrange() {
   std::sort(registry.begin(), registry.end(), WifiCredentials::compareByRank);
-  while(registry.size() > maxSize) {
-    WifiCredentials * last = registry.back() ;
+  while (registry.size() > maxSize) {
+    WifiCredentials *last = registry.back();
     registry.pop_back();
-    delete(last);
+    delete (last);
   }
   rewind();
+}
+
+WifiCredentials *const WifiCredentialsRegistry::next() {
+  WifiCredentials *result = nullptr;
+  if (hasNext()) {
+    result = *registryIterator;
+    registryIterator++;
+  }
+  return result;
 }
 
 WifiCredentialsRegistry *
@@ -106,7 +115,7 @@ WifiCredentialsRegistry::remove(WifiCredentials *const credentials) {
     if (entry->isSameSsid(credentials)) {
       moveRankUpAfter(entry);
       registry.erase(it);
-      delete(entry);
+      delete (entry);
       return rewind();
     }
     it++;
