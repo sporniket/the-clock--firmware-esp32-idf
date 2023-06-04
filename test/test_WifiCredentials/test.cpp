@@ -37,7 +37,12 @@ bool shouldHaveSameRank(WifiCredentials *wc1, WifiCredentials *wc2) {
 }
 
 void test_simpleConstructor() {
+  // Prepare
+
+  // Execute
   WifiCredentials test(dummySsid, dummyKey, WifiKeyType::PASSWORD);
+
+  // Verify
   TEST_ASSERT_EQUAL_INT(WifiKeyType::PASSWORD, test.getKeyType());
   TEST_ASSERT_EQUAL_UINT8_ARRAY(dummySsid, test.getSsid(), MAX_LENGTH_OF_SSID);
   TEST_ASSERT_TRUE(dummySsid != test.getSsid());
@@ -46,8 +51,13 @@ void test_simpleConstructor() {
 }
 
 void test_copyConstructor() {
+  // Prepare
   WifiCredentials dummy(dummySsid, dummyKey, WifiKeyType::PASSWORD);
+
+  // Execute
   WifiCredentials test(dummy);
+
+  // Verify
   TEST_ASSERT_EQUAL_INT(WifiKeyType::PASSWORD, test.getKeyType());
   TEST_ASSERT_EQUAL_UINT8_ARRAY(dummySsid, test.getSsid(), MAX_LENGTH_OF_SSID);
   TEST_ASSERT_TRUE(dummySsid != test.getSsid());
@@ -56,35 +66,66 @@ void test_copyConstructor() {
   TEST_ASSERT_TRUE(dummyKey != test.getKey());
   TEST_ASSERT_TRUE(dummy.getKey() != test.getKey());
 
-  // verify queries between instances
+  // -- verify queries between instances
   TEST_ASSERT_TRUE(shouldHaveSameRank(&test, &dummy));
   TEST_ASSERT_TRUE(dummy.isSameSsid(&dummy));
 }
 
 void test_rankManagementAndComparison() {
+  // Prepare
   WifiCredentials dummy(dummySsid, dummyKey, WifiKeyType::PASSWORD);
   WifiCredentials test(dummy);
+
+  // ========[ STEP 1 ]========
+  // Execute
   test.rankDown(); // test comes "after" dummy
+
+  // Verify
   TEST_ASSERT_TRUE(WifiCredentials::compareByRank(&dummy, &test));
   TEST_ASSERT_FALSE(WifiCredentials::compareByRank(&test, &dummy));
+
+  // ========[ STEP 2 ]========
+  // Execute
   dummy.rankDown(); // test and dummy are at the same place
+
+  // Verify
   TEST_ASSERT_FALSE(WifiCredentials::compareByRank(&dummy, &test));
   TEST_ASSERT_FALSE(WifiCredentials::compareByRank(&test, &dummy));
+
+  // ========[ STEP 3 ]========
+  // Execute
   dummy.rankDown(); // test comes "before" dummy
+
+  // Verify
   TEST_ASSERT_FALSE(WifiCredentials::compareByRank(&dummy, &test));
   TEST_ASSERT_TRUE(WifiCredentials::compareByRank(&test, &dummy));
+
+  // ========[ STEP 4 ]========
+  // Execute
   dummy.rankFirst(); // test comes "after" dummy
+
+  // Verify
   TEST_ASSERT_TRUE(WifiCredentials::compareByRank(&dummy, &test));
   TEST_ASSERT_FALSE(WifiCredentials::compareByRank(&test, &dummy));
+
+  // ========[ STEP 5 ]========
+  // Execute
   test.rankUp(); // test and dummy are at the same place
+
+  // Verify
   TEST_ASSERT_FALSE(WifiCredentials::compareByRank(&dummy, &test));
   TEST_ASSERT_FALSE(WifiCredentials::compareByRank(&test, &dummy));
 }
 
 void test_changeOfKey() {
+  // Prepare
   WifiCredentials test(dummySsid, dummyKey, WifiKeyType::PASSWORD);
+
+  // Execute
   test.setKeyType(WifiKeyType::PRESHAREDKEY);
   test.setKey(dummyKey2);
+
+  // Verify
   TEST_ASSERT_EQUAL_INT(WifiKeyType::PRESHAREDKEY, test.getKeyType());
   TEST_ASSERT_EQUAL_UINT8_ARRAY(dummyKey2, test.getKey(),
                                 MAX_LENGTH_OF_KEYPASS);
