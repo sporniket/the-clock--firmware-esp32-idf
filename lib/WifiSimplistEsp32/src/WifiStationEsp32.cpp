@@ -20,3 +20,32 @@
 
 WifiStationEsp32::~WifiStationEsp32() {}
 // write code here...
+
+void WifiStationEsp32::notifyGotHostConfiguration(
+    HostConfigurationDescription *desc) {
+  for (std::unordered_set<HostConfigurationEventListener *>::iterator iter =
+           hostConfigurationListeners.begin();
+       iter != hostConfigurationListeners.end(); iter++) {
+    HostConfigurationEventListener *listener = *iter;
+    listener->onGotConfiguration(desc);
+  }
+}
+
+void WifiStationEsp32::notifyLostHostConfiguration() {
+  for (std::unordered_set<HostConfigurationEventListener *>::iterator iter =
+           hostConfigurationListeners.begin();
+       iter != hostConfigurationListeners.end(); iter++) {
+    HostConfigurationEventListener *listener = *iter;
+    listener->onLostConfiguration();
+  }
+}
+
+void WifiStationEsp32::init() {}
+
+void WifiStationEsp32::start() {}
+
+void WifiStationEsp32::stop() {}
+
+void WifiStationEsp32::tryWps() {}
+
+bool WifiStationEsp32::isTryingWps() { return false; }
