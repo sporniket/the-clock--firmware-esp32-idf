@@ -3,19 +3,47 @@
 
 // standard includes
 #include <cstdint>
+#include <cstdio>
+#include <memory>
 
 // esp32 includes
+#include <esp_log.h>
+#include <nvs.h>
+#include <nvs_flash.h>
+#include <nvs_handle.hpp>
 
 // project includes
+#include "WifiSimplist.hpp"
 
-/** @brief What the class is for.
+/** @brief Dao for wifi credentials registry, that use the non volatile storage.
+ *
+ * The designator is used as namespace. The NVS **MUST** have been initialized
+ * beforehand.
  */
-class WifiCredentialsRegistryDaoUsingNvs {
-    private:
+class WifiCredentialsRegistryDaoUsingNvs : public WifiCredentialsRegistryDao {
+private:
+  void logErrorGetItem(const char *tag, esp_err_t err);
 
-    public:
-        virtual ~WifiCredentialsRegistryDaoUsingNvs() ;
+public:
+  virtual ~WifiCredentialsRegistryDaoUsingNvs();
 
-} ;
+  /**
+   * @brief Load entries and put them into the provided registry.
+   *
+   * @param recipient the registry to update.
+   *
+   * @return true when all went well.
+   */
+  virtual bool loadInto(WifiCredentialsRegistry *recipient);
+
+  /**
+   * @brief Extract the entries of the provided registry and save them.
+   *
+   * @param source
+   *
+   * @return true when all went well.
+   */
+  virtual bool saveFrom(const WifiCredentialsRegistry *const source);
+};
 
 #endif

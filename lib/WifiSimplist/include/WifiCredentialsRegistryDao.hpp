@@ -46,19 +46,31 @@ public:
     designator = value;
     return this;
   }
+
+  /**
+   * @brief Get the Designator.
+   * 
+   * @return std::string* the current designator.
+   */
+  std::string* getDesignator() {return &designator ;}
+
   /**
    * @brief Load entries and put them into the provided registry.
    *
    * @param recipient the registry to update.
+   * 
+   * @return true when all went well.
    */
-  virtual void loadInto(const WifiCredentialsRegistry *recipient) = 0;
+  virtual bool loadInto(WifiCredentialsRegistry *recipient) = 0;
 
   /**
    * @brief Extract the entries of the provided registry and save them.
    *
    * @param source
+   * 
+   * @return true when all went well.
    */
-  virtual void saveFrom(const WifiCredentialsRegistry *const source) = 0;
+  virtual bool saveFrom(const WifiCredentialsRegistry *const source) = 0;
 };
 
 #endif

@@ -92,6 +92,13 @@ public:
    */
   uint8_t getSize() { return registry.size(); }
 
+  /**
+   * @brief Get the capacity of this registry.
+   *
+   * @return uint8_t the maximum size of the registry.
+   */
+  uint8_t getCapacity() { return maxSize; }
+
   // enumeration interface.
   /**
    * @brief Enumeration interface -- go back to the begining of the sequence.
@@ -115,8 +122,8 @@ public:
    * @return WifiCredentials* the next element, or `nullptr` if the enumeration
    * is finished.
    */
-  WifiCredentials *const next() ;
-  
+  WifiCredentials *const next();
+
   // update interface
   /**
    * @brief Registers new credentials, or an update of existing credentials
