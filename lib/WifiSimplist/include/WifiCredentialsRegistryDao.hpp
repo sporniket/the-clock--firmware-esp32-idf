@@ -70,7 +70,7 @@ public:
    * 
    * @return true when all went well.
    */
-  virtual bool saveFrom(const WifiCredentialsRegistry *const source) = 0;
+  virtual bool saveFrom(WifiCredentialsRegistry *const source) = 0;
 };
 
 #endif

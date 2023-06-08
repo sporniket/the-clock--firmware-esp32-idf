@@ -18,7 +18,15 @@
 // header include
 #include "WifiCredentialsRegistry.hpp"
 
-WifiCredentialsRegistry::~WifiCredentialsRegistry() {}
+WifiCredentialsRegistry::~WifiCredentialsRegistry() {
+  std::vector<WifiCredentials *>::iterator it = registry.begin();
+  while(it != registry.end()) {
+    WifiCredentials * entry = *it;
+    registry.erase(it);
+    delete entry;
+    it = registry.begin();
+  }
+}
 // write code here...
 
 WifiCredentials *WifiCredentialsRegistry::find(WifiCredentials *query) {

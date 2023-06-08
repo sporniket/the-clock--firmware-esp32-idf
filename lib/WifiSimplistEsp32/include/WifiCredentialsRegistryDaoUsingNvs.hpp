@@ -22,7 +22,9 @@
  */
 class WifiCredentialsRegistryDaoUsingNvs : public WifiCredentialsRegistryDao {
 private:
-  void logErrorGetItem(const char *tag, esp_err_t err);
+  void logErrorGetItem(const char *tag, esp_err_t err, char* keyname);
+  void logErrorSetItem(const char *tag, esp_err_t err, char* keyname);
+  void logErrorCommit(const char *tag, esp_err_t err, char* keyname);
 
 public:
   virtual ~WifiCredentialsRegistryDaoUsingNvs();
@@ -43,7 +45,7 @@ public:
    *
    * @return true when all went well.
    */
-  virtual bool saveFrom(const WifiCredentialsRegistry *const source);
+  virtual bool saveFrom(WifiCredentialsRegistry *const source);
 };
 
 #endif

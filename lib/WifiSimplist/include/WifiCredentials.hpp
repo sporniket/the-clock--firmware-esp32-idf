@@ -52,6 +52,11 @@ private:
    * @brief The key to authenticate on the wifi network.
    */
   uint8_t key[MAX_LENGTH_OF_KEYPASS];
+  static void copyAndNullTerminate(uint8_t *to, const uint8_t *from,
+                                   uint8_t size) {
+    memcpy(to, from, size);
+    to[size - 1] = 0;
+  }
 
 public:
   /**
@@ -124,7 +129,7 @@ public:
    * @param newKey the new key value to copy from.
    */
   void setKey(const uint8_t *newKey) {
-    memcpy(key, newKey, MAX_LENGTH_OF_KEYPASS);
+    copyAndNullTerminate(key, newKey, MAX_LENGTH_OF_KEYPASS);
   }
 };
 
