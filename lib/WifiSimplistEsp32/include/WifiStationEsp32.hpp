@@ -22,6 +22,8 @@
 #include <unordered_set>
 
 // esp32 includes
+#include "esp_wifi.h"
+#include "esp_wps.h"
 
 // project includes
 #include "InternetSimplist.hpp"
@@ -57,14 +59,102 @@ private:
    */
   void notifyGotHostConfiguration(HostConfigurationDescription *desc);
 
-
   /**
    * @brief Notify the registered listeners of host configuration events that it
    * lost the IP address.
    */
   void notifyLostHostConfiguration();
 
+  // ========[ Wifi events handlers ]========
+  /**
+   * @brief Event handler for WIFI_EVENT_STA_START.
+   *
+   * @param arg see Esp32 documentation.
+   * @param event_base see Esp32 documentation.
+   * @param event_id see Esp32 documentation.
+   * @param event_data the provided instance of WifiStationEsp32.
+   */
+  void handleWifiEventStationStart(void *arg, esp_event_base_t event_base,
+                                   int32_t event_id, void *event_data) ;
+
+  /**
+   * @brief Event handler for WIFI_EVENT_STA_DISCONNECTED.
+   *
+   * @param arg see Esp32 documentation.
+   * @param event_base see Esp32 documentation.
+   * @param event_id see Esp32 documentation.
+   * @param event_data the provided instance of WifiStationEsp32.
+   */
+  void handleWifiEventStationDisconnected(void *arg,
+                                          esp_event_base_t event_base,
+                                          int32_t event_id, void *event_data) ;
+
+  /**
+   * @brief Event handler for WIFI_EVENT_STA_WPS_ER_SUCCESS.
+   *
+   * @param arg see Esp32 documentation.
+   * @param event_base see Esp32 documentation.
+   * @param event_id see Esp32 documentation.
+   * @param event_data the provided instance of WifiStationEsp32.
+   */
+  void handleWifiEventStationWpsEnrolleeSuccess(void *arg,
+                                                esp_event_base_t event_base,
+                                                int32_t event_id,
+                                                void *event_data) ;
+
+  /**
+   * @brief Event handler for WIFI_EVENT_STA_WPS_ER_FAILED.
+   *
+   * @param arg see Esp32 documentation.
+   * @param event_base see Esp32 documentation.
+   * @param event_id see Esp32 documentation.
+   * @param event_data the provided instance of WifiStationEsp32.
+   */
+  void handleWifiEventStationWpsEnrolleeFailure(void *arg,
+                                                esp_event_base_t event_base,
+                                                int32_t event_id,
+                                                void *event_data) ;
+
+  /**
+   * @brief Event handler for WIFI_EVENT_STA_WPS_ER_TIMEOUT.
+   *
+   * @param arg see Esp32 documentation.
+   * @param event_base see Esp32 documentation.
+   * @param event_id see Esp32 documentation.
+   * @param event_data the provided instance of WifiStationEsp32.
+   */
+  void handleWifiEventStationWpsEnrolleeTimeout(void *arg,
+                                                esp_event_base_t event_base,
+                                                int32_t event_id,
+                                                void *event_data) ;
+
+  // ========[ IP events handlers ]========
+  /**
+   * @brief Event handler for IP_EVENT_STA_GOT_IP.
+   *
+   * @param arg see Esp32 documentation.
+   * @param event_base see Esp32 documentation.
+   * @param event_id see Esp32 documentation.
+   * @param event_data the provided instance of WifiStationEsp32.
+   */
+  void handleIpEventGotIp(void *arg, esp_event_base_t event_base,
+                          int32_t event_id, void *event_data) ;
+
+  /**
+   * @brief Event handler for IP_EVENT_STA_LOST_IP.
+   *
+   * @param arg see Esp32 documentation.
+   * @param event_base see Esp32 documentation.
+   * @param event_id see Esp32 documentation.
+   * @param event_data the provided instance of WifiStationEsp32.
+   */
+  void handleIpEventLostIp(void *arg, esp_event_base_t event_base,
+                           int32_t event_id, void *event_data) {
+    notifyLostHostConfiguration();
+  }
+
 public:
+  void install();
   virtual ~WifiStationEsp32();
   WifiStationEsp32 *
   withWifiCredentialsRegistryDao(WifiCredentialsRegistryDao *dao) {
