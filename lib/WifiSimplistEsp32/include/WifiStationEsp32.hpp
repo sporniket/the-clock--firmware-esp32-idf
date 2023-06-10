@@ -51,6 +51,28 @@ private:
   std::unordered_set<HostConfigurationEventListener *>
       hostConfigurationListeners;
 
+  /** @brief Number of attempt when connecting to an access point.
+   */
+  const int MAX_RETRY = 10;
+  /**
+   * @brief Internal state in a modelized lifecycle.
+   */
+  WifiStationLifecycleState state;
+  /**
+   * @brief Keep track of the remaining number of attempts to connecting to an
+   * access point.
+   */
+  uint8_t retryRemaining;
+
+  /** @brief true when it got an host configuration.
+   */
+  bool isConnected{false};
+
+  /**
+   * @brief Current configuration (if `isConnected` is `true`).
+   */
+  HostConfigurationDescription hostConfiguration;
+
   /**
    * @brief Notify the registered listeners of host configuration events that it
    * got an IP address.
@@ -75,7 +97,7 @@ private:
    * @param event_data the provided instance of WifiStationEsp32.
    */
   void handleWifiEventStationStart(void *arg, esp_event_base_t event_base,
-                                   int32_t event_id, void *event_data) ;
+                                   int32_t event_id, void *event_data);
 
   /**
    * @brief Event handler for WIFI_EVENT_STA_DISCONNECTED.
@@ -87,7 +109,7 @@ private:
    */
   void handleWifiEventStationDisconnected(void *arg,
                                           esp_event_base_t event_base,
-                                          int32_t event_id, void *event_data) ;
+                                          int32_t event_id, void *event_data);
 
   /**
    * @brief Event handler for WIFI_EVENT_STA_WPS_ER_SUCCESS.
@@ -100,7 +122,7 @@ private:
   void handleWifiEventStationWpsEnrolleeSuccess(void *arg,
                                                 esp_event_base_t event_base,
                                                 int32_t event_id,
-                                                void *event_data) ;
+                                                void *event_data);
 
   /**
    * @brief Event handler for WIFI_EVENT_STA_WPS_ER_FAILED.
@@ -113,7 +135,7 @@ private:
   void handleWifiEventStationWpsEnrolleeFailure(void *arg,
                                                 esp_event_base_t event_base,
                                                 int32_t event_id,
-                                                void *event_data) ;
+                                                void *event_data);
 
   /**
    * @brief Event handler for WIFI_EVENT_STA_WPS_ER_TIMEOUT.
@@ -126,7 +148,7 @@ private:
   void handleWifiEventStationWpsEnrolleeTimeout(void *arg,
                                                 esp_event_base_t event_base,
                                                 int32_t event_id,
-                                                void *event_data) ;
+                                                void *event_data);
 
   // ========[ IP events handlers ]========
   /**
@@ -138,7 +160,7 @@ private:
    * @param event_data the provided instance of WifiStationEsp32.
    */
   void handleIpEventGotIp(void *arg, esp_event_base_t event_base,
-                          int32_t event_id, void *event_data) ;
+                          int32_t event_id, void *event_data);
 
   /**
    * @brief Event handler for IP_EVENT_STA_LOST_IP.
