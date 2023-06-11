@@ -22,6 +22,7 @@
 #include <unordered_set>
 
 // esp32 includes
+#include "esp_log.h"
 #include "esp_wifi.h"
 #include "esp_wps.h"
 
@@ -33,6 +34,7 @@
  */
 class WifiStationEsp32 {
 private:
+  static constexpr char *TAG = (char *)"WifiStationEsp32";
   /**
    * @brief The registry of credentials, to be loaded on startup, and saved when
    * something change it.
@@ -57,7 +59,7 @@ private:
   /**
    * @brief Internal state in a modelized lifecycle.
    */
-  WifiStationLifecycleState state;
+  WifiStationLifecycleState state = WifiStationLifecycleState::BEFORE_INIT;
   /**
    * @brief Keep track of the remaining number of attempts to connecting to an
    * access point.
@@ -175,12 +177,19 @@ private:
     notifyLostHostConfiguration();
   }
 
+  void updateState(WifiStationLifecycleState targetState) ;
+
 public:
   void install();
   virtual ~WifiStationEsp32();
   WifiStationEsp32 *
   withWifiCredentialsRegistryDao(WifiCredentialsRegistryDao *dao) {
     wcregdao = dao;
+    if (!wcregdao->loadInto(&wcreg)) {
+      ESP_LOGW(TAG,
+               "Could not restore saved credentials -or nothing to restore-.");
+    }
+    updateState(READY_TO_INSTALL);
     return this;
   }
   WifiStationEsp32 *
@@ -188,6 +197,7 @@ public:
     if (0 == hostConfigurationListeners.count(listener)) {
       hostConfigurationListeners.insert(listener);
     }
+    updateState(READY_TO_INSTALL);
     return this;
   }
 

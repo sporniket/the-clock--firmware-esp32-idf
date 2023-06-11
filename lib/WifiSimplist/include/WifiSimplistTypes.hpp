@@ -66,7 +66,7 @@ enum WifiStationLifecycleState {
    */
   TRYING_WPS,
   /**
-   * @brief Nothing succeeded, waiting to be told what to do.
+   * @brief Ready to start, or nothing succeeded, waiting to be told what to do.
    */
   NOT_CONNECTED_AND_IDLE,
   /**

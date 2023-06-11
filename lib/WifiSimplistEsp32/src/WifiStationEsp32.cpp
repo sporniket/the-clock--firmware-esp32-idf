@@ -23,6 +23,7 @@ WifiStationEsp32::~WifiStationEsp32() {}
 
 // static
 void WifiStationEsp32::install() {
+  ESP_LOGI(TAG, "Installing wifi station event handlers...");
   ESP_ERROR_CHECK(esp_event_handler_register(
       WIFI_EVENT, WIFI_EVENT_STA_START,
       (esp_event_handler_t)&handleWifiEventStationStart, NULL));
@@ -44,6 +45,42 @@ void WifiStationEsp32::install() {
   ESP_ERROR_CHECK(esp_event_handler_register(
       IP_EVENT, IP_EVENT_STA_LOST_IP, (esp_event_handler_t)&handleIpEventLostIp,
       NULL));
+  updateState(NOT_CONNECTED_AND_IDLE);
+}
+
+void WifiStationEsp32::updateState(WifiStationLifecycleState targetState) {
+  bool canSwitch = true;
+  switch (targetState) {
+  case READY_TO_INSTALL:
+    if (state != BEFORE_INIT) {
+      ESP_LOGW(TAG,
+               "Not in a state that can be changed to 'ready to install'.");
+      canSwitch = false;
+    }
+    if (nullptr == wcregdao) {
+      ESP_LOGW(TAG, "Cannot be ready to install until wcregdao is defined.");
+      canSwitch = false;
+    }
+    if (hostConfigurationListeners.empty()) {
+      ESP_LOGW(TAG, "Cannot be ready to install until at least one host "
+                    "configuration listener is registered.");
+      canSwitch = false;
+    }
+    break;
+
+  case NOT_CONNECTED_AND_IDLE:
+    if (BEFORE_INIT == state) {
+      ESP_LOGW(TAG, "Require to have been installed first.");
+      canSwitch = false;
+    }
+    break;
+
+  default:
+    break;
+  }
+  if (canSwitch) {
+    state = targetState;
+  }
 }
 
 void WifiStationEsp32::notifyGotHostConfiguration(
@@ -80,31 +117,59 @@ void WifiStationEsp32::handleWifiEventStationStart(void *arg,
                                                    esp_event_base_t event_base,
                                                    int32_t event_id,
                                                    void *event_data) {
-  // do stuff
+  ESP_LOGI(TAG, "WIFI_EVENT_STA_START");
 }
 
 void WifiStationEsp32::handleWifiEventStationDisconnected(
     void *arg, esp_event_base_t event_base, int32_t event_id,
     void *event_data) {
-  // do stuff
+  ESP_LOGI(TAG, "WIFI_EVENT_STA_DISCONNECTED");
+  if (retryCount < MAX_RETRY) {
+    tryAgainConnect();
+  } else if (0 < wpsCredentialsCount &&
+             wpsCredentialsCurrent < wpsCredentialsCount) {
+    nextAccessPoint();
+    tryAgainConnect();
+  } else {
+    ESP_LOGI(TAG, "Failed to connect to an available access point.");
+  }
 }
 
 void WifiStationEsp32::handleWifiEventStationWpsEnrolleeSuccess(
     void *arg, esp_event_base_t event_base, int32_t event_id,
     void *event_data) {
-  // do stuff
+  ESP_LOGI(TAG, "WIFI_EVENT_STA_WPS_ER_SUCCESS");
+  wifi_event_sta_wps_er_success_t *evt =
+      (wifi_event_sta_wps_er_success_t *)event_data;
+  if (evt) {
+    // Multiple Access point, cache the credentials reported by the event.
+    wpsCredentialsCount = evt->ap_cred_cnt;
+    for (int i = 0; i < wpsCredentialsCount; i++) {
+      memcpy(wpsCredentials[i].sta.ssid, evt->ap_cred[i].ssid,
+             sizeof(evt->ap_cred[i].ssid));
+      memcpy(wpsCredentials[i].sta.password, evt->ap_cred[i].passphrase,
+             sizeof(evt->ap_cred[i].passphrase));
+    }
+    useCredentials(wpsCredentialsCurrent);
+  } else {
+    ESP_LOGI(TAG, "Only one access point, ready to connect.");
+  }
+  ESP_ERROR_CHECK(esp_wifi_wps_disable());
+  esp_wifi_connect();
 }
 
 void WifiStationEsp32::handleWifiEventStationWpsEnrolleeFailure(
     void *arg, esp_event_base_t event_base, int32_t event_id,
     void *event_data) {
-  // do stuff
+  ESP_LOGI(TAG, "WIFI_EVENT_STA_WPS_ER_FAILED");
+  tryAgainWps();
 }
 
 void WifiStationEsp32::handleWifiEventStationWpsEnrolleeTimeout(
     void *arg, esp_event_base_t event_base, int32_t event_id,
     void *event_data) {
-  // do stuff
+  ESP_LOGI(TAG, "WIFI_EVENT_STA_WPS_ER_TIMEOUT");
+  tryAgainWps();
 }
 
 // ========[ IP events handlers ]========
@@ -115,6 +180,11 @@ void WifiStationEsp32::handleIpEventGotIp(void *arg,
                                           esp_event_base_t event_base,
                                           int32_t event_id, void *event_data) {
   ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+  ESP_LOGI(TAG, "got ip: " IPSTR, IP2STR(&event->ip_info.ip));
+  ESP_LOGI(TAG, "got network mask: " IPSTR, IP2STR(&event->ip_info.netmask));
+  ESP_LOGI(TAG, "got gateway: " IPSTR, IP2STR(&event->ip_info.gw));
+
+  // TODO : prioritize the current credentials
 
   // copy ip address
   uint32_t currentIpv4 = event->ip_info.ip.addr;
