@@ -45,10 +45,10 @@ void WifiStationEsp32::install() {
   ESP_ERROR_CHECK(esp_event_handler_register(
       IP_EVENT, IP_EVENT_STA_LOST_IP, (esp_event_handler_t)&handleIpEventLostIp,
       NULL));
-  updateState(NOT_CONNECTED_AND_IDLE);
+  updateState(INSTALLED);
 }
 
-void WifiStationEsp32::updateState(WifiStationLifecycleState targetState) {
+bool WifiStationEsp32::updateState(WifiStationLifecycleState targetState) {
   bool canSwitch = true;
   switch (targetState) {
   case READY_TO_INSTALL:
@@ -68,6 +68,20 @@ void WifiStationEsp32::updateState(WifiStationLifecycleState targetState) {
     }
     break;
 
+  case INSTALLED:
+    if (state != READY_TO_INSTALL) {
+      ESP_LOGW(TAG, "Not in a state that can be changed to 'installed'.");
+      canSwitch = false;
+    }
+    break;
+
+  case TRYING_KNOWN_ACCESS_POINTS:
+    if (INSTALLED != state && NOT_CONNECTED_AND_IDLE != state) {
+      ESP_LOGW(TAG, "Not in a state that can be changed to 'trying known "
+                    "access points'.");
+      canSwitch = false;
+    }
+
   case NOT_CONNECTED_AND_IDLE:
     if (BEFORE_INIT == state) {
       ESP_LOGW(TAG, "Require to have been installed first.");
@@ -81,6 +95,7 @@ void WifiStationEsp32::updateState(WifiStationLifecycleState targetState) {
   if (canSwitch) {
     state = targetState;
   }
+  return canSwitch;
 }
 
 void WifiStationEsp32::notifyGotHostConfiguration(
@@ -102,15 +117,30 @@ void WifiStationEsp32::notifyLostHostConfiguration() {
   }
 }
 
-void WifiStationEsp32::init() {}
+void WifiStationEsp32::init() {
+  if (!wcregdao->loadInto(&wcreg)) {
+    ESP_LOGW(TAG,
+             "Could not restore saved credentials -or nothing to restore-.");
+  }
+  updateState(READY_TO_INSTALL);
+}
 
-void WifiStationEsp32::start() {}
+void WifiStationEsp32::start() {
+  if (READY_TO_INSTALL == state) {
+    install();
+    tryKnownAccessPoints();
+  }
+}
 
 void WifiStationEsp32::stop() {}
 
-void WifiStationEsp32::tryWps() {}
+void WifiStationEsp32::tryWps() {
+  if (!updateState(TRYING_WPS)) {
+    return;
+  }
+}
 
-bool WifiStationEsp32::isTryingWps() { return false; }
+bool WifiStationEsp32::isTryingWps() { return TRYING_WPS == state; }
 
 // ========[ Wifi events handlers ]========
 void WifiStationEsp32::handleWifiEventStationStart(void *arg,

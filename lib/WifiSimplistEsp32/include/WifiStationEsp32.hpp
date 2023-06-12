@@ -75,6 +75,46 @@ private:
    */
   HostConfigurationDescription hostConfiguration;
 
+  void tryKnownAccessPoints() {
+    if (!updateState(TRYING_KNOWN_ACCESS_POINTS)) {
+      return;
+    }
+    wcreg.rewind();
+    if (!wcreg.hasNext()) {
+      updateState(DONE_TRYING_KNOWN_ACCESS_POINTS);
+      tryWps();
+    }
+  }
+
+  void tryAgainConnect() {
+    esp_wifi_connect();
+    if (0 < retryRemaining) {
+      --retryRemaining;
+    }
+  }
+
+  // HERE
+  bool nextAccessPoint() {
+    if (state == TRYING_KNOWN_ACCESS_POINTS) {
+      if (!wcreg.hasNext()) {
+        updateState(DONE_TRYING_KNOWN_ACCESS_POINTS);
+        return false;
+      } else {
+        // use next
+      }
+    } else if (state == TRYING_WPS) {
+      if (0 < wpsCredentialsCount) {
+        ++wpsCredentialsCurrent;
+        if (wpsCredentialsCurrent < wpsCredentialsCount) {
+          ESP_LOGI(TAG, "Tried all access points");
+          wpsCredentialsCurrent = 0; // cycle through access points
+          updateState(NOT_CONNECTED_AND_IDLE);
+        }
+        useCredentials(wpsCredentialsCurrent);
+      }
+      retryRemaining = MAX_RETRY;
+    }
+  }
   /**
    * @brief Notify the registered listeners of host configuration events that it
    * got an IP address.
@@ -177,19 +217,19 @@ private:
     notifyLostHostConfiguration();
   }
 
-  void updateState(WifiStationLifecycleState targetState) ;
+  /**
+   * @brief Try to change the current state to the given state.
+   *
+   * @param targetState the state to be changed into.
+   * @return true when the state has been changed for the targetState.
+   */
+  bool updateState(WifiStationLifecycleState targetState);
 
 public:
-  void install();
   virtual ~WifiStationEsp32();
   WifiStationEsp32 *
   withWifiCredentialsRegistryDao(WifiCredentialsRegistryDao *dao) {
     wcregdao = dao;
-    if (!wcregdao->loadInto(&wcreg)) {
-      ESP_LOGW(TAG,
-               "Could not restore saved credentials -or nothing to restore-.");
-    }
-    updateState(READY_TO_INSTALL);
     return this;
   }
   WifiStationEsp32 *
@@ -202,6 +242,11 @@ public:
   }
 
   /**
+   * @brief Install the wifi station event handlers.
+   */
+  void install();
+
+  /**
    * @brief Initialise the station, should be called **after** having set all
    * the collaborative objects (e.g. call to
    * `withWifiCredentialsRegistryDao()`).
@@ -209,7 +254,8 @@ public:
   void init();
 
   /**
-   * @brief Registers itself as handler for various Esp32-IdF wifi calls.
+   * @brief Registers itself as handler for various Esp32-IdF wifi calls, then
+   * try to connect.
    */
   void start();
 

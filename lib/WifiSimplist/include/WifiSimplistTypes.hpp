@@ -57,9 +57,17 @@ enum WifiStationLifecycleState {
    */
   READY_TO_INSTALL,
   /**
+   * @brief The event handlers are installed, ready to connect.
+   */
+  INSTALLED,
+  /**
    * @brief In the process of trying each known access point to get connected.
    */
   TRYING_KNOWN_ACCESS_POINTS,
+  /**
+   * @brief Tried each known access point, without success.
+   */
+  DONE_TRYING_KNOWN_ACCESS_POINTS,
   /**
    * @brief Attempt to connect to known access point failed or timed out, trying
    * through wps.
