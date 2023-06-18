@@ -80,12 +80,35 @@ bool WifiStationEsp32::updateState(WifiStationLifecycleState targetState) {
       ESP_LOGW(TAG, "Not in a state that can be changed to 'trying known "
                     "access points'.");
       canSwitch = false;
+    } else {
+      ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config_known_ap));
+      wcreg.rewind();
     }
+    break;
+
+  case DONE_TRYING_KNOWN_ACCESS_POINTS:
+    if (TRYING_KNOWN_ACCESS_POINTS != state) {
+      ESP_LOGW(TAG, "Not in a state that can be changed to 'done trying known "
+                    "access points'.");
+      canSwitch = false;
+    }
+    break;
+
+  case TRYING_WPS:
+    if (DONE_TRYING_KNOWN_ACCESS_POINTS != state) {
+      ESP_LOGW(TAG, "Not in a state that can be changed to 'trying wps.");
+      canSwitch = false;
+    } else {
+      startWps();
+    }
+    break;
 
   case NOT_CONNECTED_AND_IDLE:
     if (BEFORE_INIT == state) {
       ESP_LOGW(TAG, "Require to have been installed first.");
       canSwitch = false;
+    } else {
+      ESP_ERROR_CHECK(esp_wifi_wps_disable());
     }
     break;
 
@@ -96,6 +119,41 @@ bool WifiStationEsp32::updateState(WifiStationLifecycleState targetState) {
     state = targetState;
   }
   return canSwitch;
+}
+
+bool WifiStationEsp32::tryNextKnownAccessPoints() {
+  if (!updateState(TRYING_KNOWN_ACCESS_POINTS)) {
+    return false;
+  }
+  if (!wcreg.hasNext()) {
+    updateState(DONE_TRYING_KNOWN_ACCESS_POINTS);
+    return false;
+  }
+  WifiCredentials *wc = wcreg.next();
+  ESP_LOGI(TAG, "Connecting to known SSID: %s", wc->getSsid());
+  setupCredentials(wifi_config_known_ap, wc->getSsid(), wc->getKey());
+  esp_wifi_connect();
+  return true;
+}
+
+bool WifiStationEsp32::tryNextWpsAccessPoint() {
+  if (0 < wpsCredentialsCount) {
+    ++wpsCredentialsCurrent;
+    if (wpsCredentialsCurrent < wpsCredentialsCount) {
+      ESP_LOGI(TAG, "Tried all access points");
+      wpsCredentialsCount = 0; // drop all the scanned access points
+      updateState(NOT_CONNECTED_AND_IDLE);
+      return false;
+    }
+    ESP_LOGI(TAG, "Connecting to SSID: %s",
+             wpsCredentials[wpsCredentialsCurrent].sta.ssid);
+    ESP_ERROR_CHECK(esp_wifi_set_config(
+        WIFI_IF_STA, &wpsCredentials[wpsCredentialsCurrent]));
+    tryAgainConnect();
+  } else {
+    ESP_LOGI(TAG, "There was no WPS access points.");
+    updateState(NOT_CONNECTED_AND_IDLE);
+  }
 }
 
 void WifiStationEsp32::notifyGotHostConfiguration(
@@ -129,9 +187,14 @@ void WifiStationEsp32::tryToConnect() {
   if (READY_TO_INSTALL == state) {
     install();
   }
-  if (WifiStationLifecycleState::NOT_CONNECTED_AND_IDLE == state || WifiStationLifecycleState::INSTALLED) {
-    // TODO rewrite
-    tryKnownAccessPoints();
+  if (WifiStationLifecycleState::NOT_CONNECTED_AND_IDLE == state ||
+      WifiStationLifecycleState::INSTALLED) {
+    updateState(TRYING_KNOWN_ACCESS_POINTS);
+
+    if (!tryNextKnownAccessPoints()) {
+      ESP_LOGI(TAG, "No known access point, switch to wps...");
+      updateState(TRYING_WPS);
+    }
   }
 }
 
@@ -147,14 +210,28 @@ void WifiStationEsp32::handleWifiEventStationDisconnected(
     void *arg, esp_event_base_t event_base, int32_t event_id,
     void *event_data) {
   ESP_LOGI(TAG, "WIFI_EVENT_STA_DISCONNECTED");
-  if (retryCount < MAX_RETRY) {
-    tryAgainConnect();
-  } else if (0 < wpsCredentialsCount &&
-             wpsCredentialsCurrent < wpsCredentialsCount) {
-    nextAccessPoint();
-    tryAgainConnect();
+  // select next step according to state
+  if (TRYING_KNOWN_ACCESS_POINTS == state) {
+    ESP_LOGI(TAG, "Failed to connect to a known access point.");
+    if (!tryNextKnownAccessPoints()) {
+      ESP_LOGI(TAG, "No known access point any more, switch to wps...");
+      updateState(TRYING_WPS);
+    }
+  } else if (TRYING_WPS == state) {
+    if (remainingRetriesForAccessPoint > 0) {
+      tryAgainConnect();
+    } else if (0 < wpsCredentialsCount &&
+               wpsCredentialsCurrent < wpsCredentialsCount) {
+      // TODO to rewrite
+      tryNextWpsAccessPoint();
+      tryAgainConnect();
+    } else {
+      ESP_LOGI(TAG, "Failed to connect to an available access point.");
+      updateState(NOT_CONNECTED_AND_IDLE);
+    }
   } else {
-    ESP_LOGI(TAG, "Failed to connect to an available access point.");
+    ESP_LOGW(TAG, "UNKNOWN STATE, failed to connect anyway, go back to idle.");
+    updateState(NOT_CONNECTED_AND_IDLE);
   }
 }
 
@@ -185,14 +262,24 @@ void WifiStationEsp32::handleWifiEventStationWpsEnrolleeFailure(
     void *arg, esp_event_base_t event_base, int32_t event_id,
     void *event_data) {
   ESP_LOGI(TAG, "WIFI_EVENT_STA_WPS_ER_FAILED");
-  tryAgainWps();
+  if (0 == remainingRetriesForWps) {
+    ESP_LOGI(TAG, "Still cannot connect using WPS, gives up.");
+    updateState(NOT_CONNECTED_AND_IDLE);
+  } else {
+    tryAgainWps();
+  }
 }
 
 void WifiStationEsp32::handleWifiEventStationWpsEnrolleeTimeout(
     void *arg, esp_event_base_t event_base, int32_t event_id,
     void *event_data) {
   ESP_LOGI(TAG, "WIFI_EVENT_STA_WPS_ER_TIMEOUT");
-  tryAgainWps();
+  if (0 == remainingRetriesForWps) {
+    ESP_LOGI(TAG, "Still cannot connect using WPS, gives up.");
+    updateState(NOT_CONNECTED_AND_IDLE);
+  } else {
+    tryAgainWps();
+  }
 }
 
 // ========[ IP events handlers ]========

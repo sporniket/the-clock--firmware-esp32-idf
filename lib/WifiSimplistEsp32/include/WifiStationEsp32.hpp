@@ -86,7 +86,12 @@ private:
    * @brief Keep track of the remaining number of attempts to connecting to an
    * access point.
    */
-  uint8_t retryRemaining;
+  uint8_t remainingRetriesForAccessPoint;
+  /**
+   * @brief Keep track of the remaining number of attempts to use wps to scan
+   * and get a connection to an access point.
+   */
+  uint8_t remainingRetriesForWps;
 
   /** @brief storage of the mac address.
    */
@@ -138,57 +143,49 @@ private:
     ;
   }
 
-  void tryKnownAccessPoints() {
-    if (!updateState(TRYING_KNOWN_ACCESS_POINTS)) {
-      return;
-    }
-    wcreg.rewind();
-    if (!wcreg.hasNext()) {
-      updateState(DONE_TRYING_KNOWN_ACCESS_POINTS);
-      tryWps();
-      return;
-    }
-    WifiCredentials *wc = wcreg.next();
-    setupCredentials(wifi_config_known_ap, wc->getSsid(), wc->getKey());
-  }
+  /**
+   * @brief Try to use the next known access point credentials to setup the wifi
+   * configuration.
+   *
+   * @return true when there is a connection being tried.
+   */
+  bool tryNextKnownAccessPoints();
 
+  /**
+   * @brief For a WPS access point, try multiple times as long as it is within
+   * the accepted number of retries.
+   */
   void tryAgainConnect() {
     esp_wifi_connect();
-    if (0 < retryRemaining) {
-      --retryRemaining;
+    if (0 < remainingRetriesForAccessPoint) {
+      --remainingRetriesForAccessPoint;
     }
+  }
+
+  /**
+   * @brief Try to use the next WPS access point that has been scanned.
+   *
+   * @return true when there is a connection being tried.
+   */
+  bool tryNextWpsAccessPoint();
+
+  void startWps() {
+    ESP_ERROR_CHECK(esp_wifi_wps_enable(&config));
+    ESP_ERROR_CHECK(esp_wifi_wps_start(0));
+    if (0 < remainingRetriesForWps) {
+      --remainingRetriesForWps;
+    }
+  }
+
+  void tryAgainWps() {
+    ESP_ERROR_CHECK(esp_wifi_wps_disable());
+    startWps();
   }
 
   /** @brief Use credentials of the next access point
    */
-  inline void useWpsCredentials(int index) {
-    ESP_LOGI(TAG, "Connecting to SSID: %s", wpsCredentials[index].sta.ssid);
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wpsCredentials[index]));
-  }
+  inline void useWpsCredentials(int index) {}
 
-  // HERE
-  bool nextAccessPoint() {
-    if (state == TRYING_KNOWN_ACCESS_POINTS) {
-      if (!wcreg.hasNext()) {
-        updateState(DONE_TRYING_KNOWN_ACCESS_POINTS);
-        return false;
-      } else {
-        WifiCredentials *wc = wcreg.next();
-        setupCredentials(wifi_config_known_ap, wc->getSsid(), wc->getKey());
-      }
-    } else if (state == TRYING_WPS) {
-      if (0 < wpsCredentialsCount) {
-        ++wpsCredentialsCurrent;
-        if (wpsCredentialsCurrent < wpsCredentialsCount) {
-          ESP_LOGI(TAG, "Tried all access points");
-          wpsCredentialsCurrent = 0; // cycle through access points
-          updateState(NOT_CONNECTED_AND_IDLE);
-        }
-        useWpsCredentials(wpsCredentialsCurrent);
-      }
-      retryRemaining = MAX_RETRY;
-    }
-  }
   /**
    * @brief Notify the registered listeners of host configuration events that it
    * got an IP address.
