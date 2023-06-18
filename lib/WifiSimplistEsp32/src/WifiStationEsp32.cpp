@@ -125,22 +125,15 @@ void WifiStationEsp32::init() {
   updateState(READY_TO_INSTALL);
 }
 
-void WifiStationEsp32::start() {
+void WifiStationEsp32::tryToConnect() {
   if (READY_TO_INSTALL == state) {
     install();
+  }
+  if (WifiStationLifecycleState::NOT_CONNECTED_AND_IDLE == state || WifiStationLifecycleState::INSTALLED) {
+    // TODO rewrite
     tryKnownAccessPoints();
   }
 }
-
-void WifiStationEsp32::stop() {}
-
-void WifiStationEsp32::tryWps() {
-  if (!updateState(TRYING_WPS)) {
-    return;
-  }
-}
-
-bool WifiStationEsp32::isTryingWps() { return TRYING_WPS == state; }
 
 // ========[ Wifi events handlers ]========
 void WifiStationEsp32::handleWifiEventStationStart(void *arg,
@@ -180,7 +173,7 @@ void WifiStationEsp32::handleWifiEventStationWpsEnrolleeSuccess(
       memcpy(wpsCredentials[i].sta.password, evt->ap_cred[i].passphrase,
              sizeof(evt->ap_cred[i].passphrase));
     }
-    useCredentials(wpsCredentialsCurrent);
+    useWpsCredentials(wpsCredentialsCurrent);
   } else {
     ESP_LOGI(TAG, "Only one access point, ready to connect.");
   }

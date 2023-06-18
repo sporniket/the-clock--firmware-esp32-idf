@@ -19,6 +19,7 @@
 
 // standard includes
 #include <cstdint>
+#include <cstring>
 #include <unordered_set>
 
 // esp32 includes
@@ -31,6 +32,27 @@
 #include "WifiSimplist.hpp"
 
 /** @brief Model of a Wifi Station on Esp32 platform.
+ *
+ * Typical startup sequence :
+ * ```cpp
+ * WifiStationEsp32* station = new WifiStationEsp32()
+ *     -> withWifiCredentialsRegistryDao(theDao)
+ *     -> withHostConfigurationEventListener(theListener) ;
+ * station.init() ;
+ * station.tryToConnect() ;
+ * ```
+ *
+ * Typical status sequence, **once `tryToConnect()` has been called** :
+ * ```
+ * if(station.isConnected()) {
+ *   // behavior for up and running, e.g. switch on a status led
+ * } else if (station.isTryingToConnect()) {
+ *   // behavior for waiting for connection, e.g. blinking a status led
+ * } else {
+ *   // behavior when down and idle, e.g. try to connect again when pushing a
+ * button
+ * }
+ * ```
  */
 class WifiStationEsp32 {
 private:
@@ -66,6 +88,39 @@ private:
    */
   uint8_t retryRemaining;
 
+  /** @brief storage of the mac address.
+   */
+  uint8_t macAddress[6];
+
+  /** @brief storage of the wps configuration.
+   */
+  esp_wps_config_t config WPS_CONFIG_INIT_DEFAULT(WPS_TYPE_PBC);
+
+  /** @brief storage of all the credentials we got.
+   */
+  wifi_config_t wpsCredentials[MAX_WPS_AP_CRED];
+
+  /** @brief number of credentials in wpsCredentials.
+   */
+  int wpsCredentialsCount = 0;
+
+  /** @brief Current access point to connect to.
+   */
+  int wpsCredentialsCurrent = 0;
+
+  /**
+   * @brief Wifi config to be used with known access points
+   */
+  wifi_config_t wifi_config_known_ap = {
+      .sta =
+          {
+              .ssid = "",
+              .password = "",
+              .threshold = {.authmode = WIFI_AUTH_WPA2_PSK},
+              .sae_pwe_h2e = WPA3_SAE_PWE_UNSPECIFIED,
+          },
+  };
+
   /** @brief true when it got an host configuration.
    */
   bool isConnected{false};
@@ -75,6 +130,14 @@ private:
    */
   HostConfigurationDescription hostConfiguration;
 
+  static void setupCredentials(wifi_config_t &cfg, uint8_t *ssid,
+                               uint8_t *pass) {
+    memcpy(cfg.sta.ssid, ssid, MAX_SSID_LEN);
+    ;
+    memcpy(cfg.sta.password, pass, MAX_PASSPHRASE_LEN);
+    ;
+  }
+
   void tryKnownAccessPoints() {
     if (!updateState(TRYING_KNOWN_ACCESS_POINTS)) {
       return;
@@ -83,7 +146,10 @@ private:
     if (!wcreg.hasNext()) {
       updateState(DONE_TRYING_KNOWN_ACCESS_POINTS);
       tryWps();
+      return;
     }
+    WifiCredentials *wc = wcreg.next();
+    setupCredentials(wifi_config_known_ap, wc->getSsid(), wc->getKey());
   }
 
   void tryAgainConnect() {
@@ -93,6 +159,13 @@ private:
     }
   }
 
+  /** @brief Use credentials of the next access point
+   */
+  inline void useWpsCredentials(int index) {
+    ESP_LOGI(TAG, "Connecting to SSID: %s", wpsCredentials[index].sta.ssid);
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wpsCredentials[index]));
+  }
+
   // HERE
   bool nextAccessPoint() {
     if (state == TRYING_KNOWN_ACCESS_POINTS) {
@@ -100,7 +173,8 @@ private:
         updateState(DONE_TRYING_KNOWN_ACCESS_POINTS);
         return false;
       } else {
-        // use next
+        WifiCredentials *wc = wcreg.next();
+        setupCredentials(wifi_config_known_ap, wc->getSsid(), wc->getKey());
       }
     } else if (state == TRYING_WPS) {
       if (0 < wpsCredentialsCount) {
@@ -110,7 +184,7 @@ private:
           wpsCredentialsCurrent = 0; // cycle through access points
           updateState(NOT_CONNECTED_AND_IDLE);
         }
-        useCredentials(wpsCredentialsCurrent);
+        useWpsCredentials(wpsCredentialsCurrent);
       }
       retryRemaining = MAX_RETRY;
     }
@@ -230,6 +304,7 @@ public:
   WifiStationEsp32 *
   withWifiCredentialsRegistryDao(WifiCredentialsRegistryDao *dao) {
     wcregdao = dao;
+    updateState(READY_TO_INSTALL);
     return this;
   }
   WifiStationEsp32 *
@@ -257,27 +332,25 @@ public:
    * @brief Registers itself as handler for various Esp32-IdF wifi calls, then
    * try to connect.
    */
-  void start();
+  void tryToConnect();
 
   /**
-   * @brief Deregisters itself as handler for various Esp32-IdF wifi calls.
+   * @brief Tells whether the station is in a connected state ('up and
+   * running').
    *
+   * @return true when a connection to an access point has been obtained.
    */
-  void stop();
+  bool isConnected() { return CONNECTED == state; }
 
   /**
-   * @brief Start to scan and find an access point with an activated push-button
-   * WPS, do nothing if it is already doing so.
-   */
-  void tryWps();
-
-  /**
-   * @brief Query about currently attempting to find and connect to an activated
-   * push-button WPS access point.
+   * @brief Tells whether the station is trying to get a connection.
    *
-   * @return true When trying to find a WPS access point
+   * @return true when it tries to connect to an access point.
    */
-  bool isTryingWps();
+  bool isTryingToConnect() {
+    return TRYING_KNOWN_ACCESS_POINTS == state ||
+           DONE_TRYING_KNOWN_ACCESS_POINTS == state || TRYING_WPS == state;
+  }
 };
 
 #endif
