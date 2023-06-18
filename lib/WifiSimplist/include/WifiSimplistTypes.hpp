@@ -43,10 +43,27 @@ enum WifiKeyType {
   PRESHAREDKEY
 };
 
+// clang-format off
 /**
  * @brief Model of a lifecycle of a wifi station.
+ * 
+ * ```mermaid
+  flowchart TD
+    BEFORE_INIT -->|add wifi credential dao and listeners| READY_TO_INSTALL
+    READY_TO_INSTALL --> |Install event handlers| INSTALLED
+    INSTALLED --> TRYING_KNOWN_ACCESS_POINTS
+    TRYING_KNOWN_ACCESS_POINTS --> |No more known access points| DONE_TRYING_KNOWN_ACCESS_POINTS
+    TRYING_KNOWN_ACCESS_POINTS --> |Got connection| CONNECTED
+    DONE_TRYING_KNOWN_ACCESS_POINTS --> TRYING_WPS
+    TRYING_WPS --> |Got connection| CONNECTED
+    TRYING_WPS --> |No success, can retry| TRYING_WPS
+    TRYING_WPS --> |No success, no more retry| NOT_CONNECTED_AND_IDLE
+    NOT_CONNECTED_AND_IDLE --> |Relauch connection process| TRYING_WPS
+    CONNECTED --> |Lost connection| NOT_CONNECTED_AND_IDLE
+ * ```
  */
 enum WifiStationLifecycleState {
+// clang-format on
   /**
    * @brief The instance has just been created.
    */
