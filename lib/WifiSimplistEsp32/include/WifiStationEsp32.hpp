@@ -286,22 +286,65 @@ private:
   void handleIpEventLostIp(void *arg, esp_event_base_t event_base,
                            int32_t event_id, void *event_data) {
     notifyLostHostConfiguration();
+    changeStateToNotConnectedAndIdle();
   }
 
+  // ========[ state management ]========
   /**
-   * @brief Try to change the current state to the given state.
+   * @brief Try to change the current state to the target state.
    *
-   * @param targetState the state to be changed into.
-   * @return true when the state has been changed for the targetState.
+   * @return true when the state has been changed.
    */
-  bool updateState(WifiStationLifecycleState targetState);
+  bool changeStateToConnected();
+
+  /**
+   * @brief Try to change the current state to the target state.
+   *
+   * @return true when the state has been changed.
+   */
+  bool changeStateToNotConnectedAndIdle();
+
+  /**
+   * @brief Try to change the current state to the target state.
+   *
+   * @return true when the state has been changed.
+   */
+  bool changeStateToTryingWps();
+
+  /**
+   * @brief Try to change the current state to the target state.
+   *
+   * @return true when the state has been changed.
+   */
+  bool changeStateToDoneTryingKnownAccessPoints();
+
+  /**
+   * @brief Try to change the current state to the target state.
+   *
+   * @return true when the state has been changed.
+   */
+  bool changeStateToTryingKnownAccessPoints();
+
+  /**
+   * @brief Try to change the current state to the target state.
+   *
+   * @return true when the state has been changed.
+   */
+  bool changeStateToInstalled();
+
+  /**
+   * @brief Try to change the current state to the target state.
+   *
+   * @return true when the state has been changed.
+   */
+  bool changeStateToReadyToInstall();
 
 public:
   virtual ~WifiStationEsp32();
   WifiStationEsp32 *
   withWifiCredentialsRegistryDao(WifiCredentialsRegistryDao *dao) {
     wcregdao = dao;
-    updateState(READY_TO_INSTALL);
+    changeStateToReadyToInstall();
     return this;
   }
   WifiStationEsp32 *
@@ -309,7 +352,7 @@ public:
     if (0 == hostConfigurationListeners.count(listener)) {
       hostConfigurationListeners.insert(listener);
     }
-    updateState(READY_TO_INSTALL);
+    changeStateToReadyToInstall();
     return this;
   }
 
