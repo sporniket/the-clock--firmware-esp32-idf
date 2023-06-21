@@ -49,7 +49,8 @@ enum WifiKeyType {
  * 
  * ```mermaid
   flowchart TD
-    BEFORE_INIT -->|add wifi credential dao and listeners| READY_TO_INSTALL
+    CREATED -->|add wifi credential dao and listeners| READY_TO_INIT
+    READY_TO_INIT -->|reload wifi credentials| READY_TO_INSTALL
     READY_TO_INSTALL --> |Install event handlers| INSTALLED
     INSTALLED --> TRYING_KNOWN_ACCESS_POINTS
     TRYING_KNOWN_ACCESS_POINTS --> |No more known access points| DONE_TRYING_KNOWN_ACCESS_POINTS
@@ -67,7 +68,11 @@ enum WifiStationLifecycleState {
   /**
    * @brief The instance has just been created.
    */
-  BEFORE_INIT,
+  CREATED,
+  /**
+   * @brief The instance is ready to be initialized.
+   */
+  READY_TO_INIT,
   /**
    * @brief The known access points credentials are reloaded and ready to use,
    * ready to install the event handlers.
