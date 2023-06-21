@@ -78,10 +78,18 @@ private:
   /** @brief Number of attempt when connecting to an access point.
    */
   const int MAX_RETRY = 10;
+
+  /**
+   * @brief Reset value for wpsCredentialsCurrent.
+   */
+  const int RESET_WPS_CREDENTIALS_CURRENT =
+      -1; // because `tryNextWpsAccessPoint()` starts by incrementing
+          // wpsCredentialsCurrent.
+
   /**
    * @brief Internal state in a modelized lifecycle.
    */
-  WifiStationLifecycleState state = WifiStationLifecycleState::BEFORE_INIT;
+  WifiStationLifecycleState state = WifiStationLifecycleState::CREATED;
   /**
    * @brief Keep track of the remaining number of attempts to connecting to an
    * access point.
@@ -181,10 +189,6 @@ private:
     ESP_ERROR_CHECK(esp_wifi_wps_disable());
     startWps();
   }
-
-  /** @brief Use credentials of the next access point
-   */
-  inline void useWpsCredentials(int index) {}
 
   /**
    * @brief Notify the registered listeners of host configuration events that it
@@ -339,12 +343,19 @@ private:
    */
   bool changeStateToReadyToInstall();
 
+  /**
+   * @brief Try to change the current state to the target state.
+   *
+   * @return true when the state has been changed.
+   */
+  bool changeStateToReadyToInit();
+
 public:
   virtual ~WifiStationEsp32();
   WifiStationEsp32 *
   withWifiCredentialsRegistryDao(WifiCredentialsRegistryDao *dao) {
     wcregdao = dao;
-    changeStateToReadyToInstall();
+    changeStateToReadyToInit();
     return this;
   }
   WifiStationEsp32 *
@@ -352,7 +363,7 @@ public:
     if (0 == hostConfigurationListeners.count(listener)) {
       hostConfigurationListeners.insert(listener);
     }
-    changeStateToReadyToInstall();
+    changeStateToReadyToInit();
     return this;
   }
 
