@@ -128,7 +128,7 @@ public:
   /**
    * @brief Registers new credentials, or an update of existing credentials
    * (same SSID). If the registry has more entries than the maximum size, the
-   * entry with the highest rank is removed. The rank of the new/updated entry
+   * entry with the lowest rank is removed. The rank of the new/updated entry
    * will be 0 (first).
    *
    * @param credentials the credentials to register, will be deep-cloned.
