@@ -50,6 +50,10 @@ void WifiStationEsp32::install() {
 
 // ========[ state management ]========
 bool WifiStationEsp32::changeStateToConnected() {
+  if(CONNECTED == state) {
+    ESP_LOGD(TAG, "Already in a state 'connected'.");
+    return false;
+  }
   if (TRYING_KNOWN_ACCESS_POINTS != state && TRYING_WPS != state) {
     ESP_LOGW(TAG, "Not in a state that can be changed to 'connected'.");
     return false;
@@ -71,7 +75,12 @@ bool WifiStationEsp32::changeStateToConnected() {
   state = CONNECTED;
   return true;
 }
+
 bool WifiStationEsp32::changeStateToNotConnectedAndIdle() {
+  if (NOT_CONNECTED_AND_IDLE == state) {
+    ESP_LOGD(TAG, "Already in a state 'not connected and idle'.");
+    return false;
+  }
   if (READY_TO_INIT == state) {
     ESP_LOGW(TAG, "Require to have been installed first.");
     return false;
@@ -82,7 +91,12 @@ bool WifiStationEsp32::changeStateToNotConnectedAndIdle() {
   state = NOT_CONNECTED_AND_IDLE;
   return true;
 }
+
 bool WifiStationEsp32::changeStateToTryingWps() {
+  if (TRYING_WPS == state) {
+    ESP_LOGD(TAG, "Already in a state 'trying wps'.");
+    return false;
+  }
   if (DONE_TRYING_KNOWN_ACCESS_POINTS != state) {
     ESP_LOGW(TAG, "Not in a state that can be changed to 'trying wps.");
     return false;
@@ -93,7 +107,12 @@ bool WifiStationEsp32::changeStateToTryingWps() {
   state = TRYING_WPS;
   return true;
 }
+
 bool WifiStationEsp32::changeStateToDoneTryingKnownAccessPoints() {
+  if (DONE_TRYING_KNOWN_ACCESS_POINTS == state) {
+    ESP_LOGD(TAG, "Already in a state 'done trying known access points'.");
+    return false;
+  }
   if (TRYING_KNOWN_ACCESS_POINTS != state) {
     ESP_LOGW(TAG, "Not in a state that can be changed to 'done trying known "
                   "access points'.");
@@ -103,7 +122,12 @@ bool WifiStationEsp32::changeStateToDoneTryingKnownAccessPoints() {
   state = DONE_TRYING_KNOWN_ACCESS_POINTS;
   return true;
 }
+
 bool WifiStationEsp32::changeStateToTryingKnownAccessPoints() {
+  if (TRYING_KNOWN_ACCESS_POINTS == state) {
+    ESP_LOGD(TAG, "Already in a state 'trying known access points'.");
+    return false;
+  }
   if (INSTALLED != state && NOT_CONNECTED_AND_IDLE != state) {
     ESP_LOGW(TAG, "Not in a state that can be changed to 'trying known "
                   "access points'.");
@@ -116,7 +140,12 @@ bool WifiStationEsp32::changeStateToTryingKnownAccessPoints() {
   state = TRYING_KNOWN_ACCESS_POINTS;
   return true;
 }
+
 bool WifiStationEsp32::changeStateToInstalled() {
+  if (INSTALLED == state) {
+    ESP_LOGD(TAG, "Already in a state 'installed'.");
+    return false;
+  }
   if (state != READY_TO_INSTALL) {
     ESP_LOGW(TAG, "Not in a state that can be changed to 'installed'.");
     return false;
@@ -125,7 +154,12 @@ bool WifiStationEsp32::changeStateToInstalled() {
   state = INSTALLED;
   return true;
 }
+
 bool WifiStationEsp32::changeStateToReadyToInstall() {
+  if (READY_TO_INSTALL == state) {
+    ESP_LOGD(TAG, "Already in a state 'ready to install'.");
+    return false;
+  }
   if (state != READY_TO_INIT) {
     ESP_LOGW(TAG, "Not in a state that can be changed to 'ready to install'.");
     return false;
@@ -138,6 +172,10 @@ bool WifiStationEsp32::changeStateToReadyToInstall() {
 }
 
 bool WifiStationEsp32::changeStateToReadyToInit() {
+  if (READY_TO_INIT == state) {
+    ESP_LOGD(TAG, "Already in a state 'ready to init'.");
+    return false;
+  }
   if (state != CREATED) {
     ESP_LOGW(TAG, "Not in a state that can be changed to 'ready to init'.");
     return false;

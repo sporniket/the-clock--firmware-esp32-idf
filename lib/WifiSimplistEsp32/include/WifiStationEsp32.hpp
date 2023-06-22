@@ -360,6 +360,9 @@ public:
   }
   WifiStationEsp32 *
   withHostConfigurationEventListener(HostConfigurationEventListener *listener) {
+    if(nullptr == listener) {
+      return this;
+    }
     if (0 == hostConfigurationListeners.count(listener)) {
       hostConfigurationListeners.insert(listener);
     }
