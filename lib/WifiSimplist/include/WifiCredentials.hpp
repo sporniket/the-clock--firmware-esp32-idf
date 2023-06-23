@@ -36,6 +36,11 @@
 class WifiCredentials {
 private:
   /**
+   * @brief What kind of key is stored, some implementation distinguish between
+   * password and pre-shared key.
+   */
+  WifiKeyType keyType;
+  /**
    * @brief A preference ranking, to be used as a sorting key.
    */
   uint8_t rank;
@@ -43,11 +48,6 @@ private:
    * @brief The wifi network ssid.
    */
   uint8_t ssid[MAX_LENGTH_OF_SSID];
-  /**
-   * @brief What kind of key is stored, some implementation distinguish between
-   * password and pre-shared key.
-   */
-  WifiKeyType keyType;
   /**
    * @brief The key to authenticate on the wifi network.
    */
@@ -102,19 +102,19 @@ public:
    *
    * @return uint8_t* const the ssid.
    */
-  uint8_t *const getSsid() { return ssid; }
+  uint8_t *getSsid() { return ssid; }
   /**
    * @brief Get the Key.
    *
    * @return uint8_t* const the key.
    */
-  uint8_t *const getKey() { return key; }
+  uint8_t *getKey() { return key; }
   /**
    * @brief Get the Key type.
    *
    * @return const WifiKeyType the type.
    */
-  const WifiKeyType getKeyType() { return keyType; }
+  WifiKeyType getKeyType() { return keyType; }
 
   /**
    * @brief Change the type of key.

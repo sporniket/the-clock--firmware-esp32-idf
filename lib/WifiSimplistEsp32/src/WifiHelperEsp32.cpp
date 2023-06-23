@@ -21,11 +21,12 @@
 WifiHelperEsp32::~WifiHelperEsp32() {}
 // write code here...
 
-WifiStationEsp32 *WifiHelperEsp32::setupAndRunStation(
-    char *storageName, HostConfigurationEventListener *listener1,
-    HostConfigurationEventListener *listener2 = nullptr,
-    HostConfigurationEventListener *listener3 = nullptr,
-    HostConfigurationEventListener *listener4 = nullptr) {
+WifiStationEsp32 *
+WifiHelperEsp32::setupAndRunStation(char *storageName,
+                                    HostConfigurationEventListener *listener1,
+                                    HostConfigurationEventListener *listener2,
+                                    HostConfigurationEventListener *listener3,
+                                    HostConfigurationEventListener *listener4) {
   // do stuff
   WifiStationEsp32 *station =
       (new WifiStationEsp32()) //

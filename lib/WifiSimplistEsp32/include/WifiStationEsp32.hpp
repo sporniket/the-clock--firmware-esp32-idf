@@ -134,10 +134,6 @@ private:
           },
   };
 
-  /** @brief true when it got an host configuration.
-   */
-  bool isConnected{false};
-
   /**
    * @brief Current configuration (if `isConnected` is `true`).
    */

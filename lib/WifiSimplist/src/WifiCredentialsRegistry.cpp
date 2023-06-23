@@ -20,8 +20,8 @@
 
 WifiCredentialsRegistry::~WifiCredentialsRegistry() {
   std::vector<WifiCredentials *>::iterator it = registry.begin();
-  while(it != registry.end()) {
-    WifiCredentials * entry = *it;
+  while (it != registry.end()) {
+    WifiCredentials *entry = *it;
     registry.erase(it);
     delete entry;
     it = registry.begin();
@@ -86,7 +86,7 @@ void WifiCredentialsRegistry::rearrange() {
   rewind();
 }
 
-WifiCredentials *const WifiCredentialsRegistry::next() {
+WifiCredentials *WifiCredentialsRegistry::next() {
   WifiCredentials *result = nullptr;
   if (hasNext()) {
     result = *registryIterator;

@@ -122,7 +122,7 @@ public:
    * @return WifiCredentials* the next element, or `nullptr` if the enumeration
    * is finished.
    */
-  WifiCredentials *const next();
+  WifiCredentials *next();
 
   // update interface
   /**

@@ -26,24 +26,24 @@ void WifiStationEsp32::install() {
   ESP_LOGI(TAG, "Installing wifi station event handlers...");
   ESP_ERROR_CHECK(esp_event_handler_register(
       WIFI_EVENT, WIFI_EVENT_STA_START,
-      (esp_event_handler_t)&handleWifiEventStationStart, NULL));
+      (esp_event_handler_t)&WifiStationEsp32::handleWifiEventStationStart, NULL));
   ESP_ERROR_CHECK(esp_event_handler_register(
       WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED,
-      (esp_event_handler_t)&handleWifiEventStationDisconnected, NULL));
+      (esp_event_handler_t)&WifiStationEsp32::handleWifiEventStationDisconnected, NULL));
   ESP_ERROR_CHECK(esp_event_handler_register(
       WIFI_EVENT, WIFI_EVENT_STA_WPS_ER_SUCCESS,
-      (esp_event_handler_t)&handleWifiEventStationWpsEnrolleeSuccess, NULL));
+      (esp_event_handler_t)&WifiStationEsp32::handleWifiEventStationWpsEnrolleeSuccess, NULL));
   ESP_ERROR_CHECK(esp_event_handler_register(
       WIFI_EVENT, WIFI_EVENT_STA_WPS_ER_FAILED,
-      (esp_event_handler_t)&handleWifiEventStationWpsEnrolleeFailure, NULL));
+      (esp_event_handler_t)&WifiStationEsp32::handleWifiEventStationWpsEnrolleeFailure, NULL));
   ESP_ERROR_CHECK(esp_event_handler_register(
       WIFI_EVENT, WIFI_EVENT_STA_WPS_ER_TIMEOUT,
-      (esp_event_handler_t)&handleWifiEventStationWpsEnrolleeTimeout, NULL));
+      (esp_event_handler_t)&WifiStationEsp32::handleWifiEventStationWpsEnrolleeTimeout, NULL));
   ESP_ERROR_CHECK(esp_event_handler_register(
-      IP_EVENT, IP_EVENT_STA_GOT_IP, (esp_event_handler_t)&handleIpEventGotIp,
+      IP_EVENT, IP_EVENT_STA_GOT_IP, (esp_event_handler_t)&WifiStationEsp32::handleIpEventGotIp,
       NULL));
   ESP_ERROR_CHECK(esp_event_handler_register(
-      IP_EVENT, IP_EVENT_STA_LOST_IP, (esp_event_handler_t)&handleIpEventLostIp,
+      IP_EVENT, IP_EVENT_STA_LOST_IP, (esp_event_handler_t)&WifiStationEsp32::handleIpEventLostIp,
       NULL));
   changeStateToInstalled();
 }
@@ -261,7 +261,7 @@ void WifiStationEsp32::tryToConnect() {
     install();
   }
   if (WifiStationLifecycleState::NOT_CONNECTED_AND_IDLE == state ||
-      WifiStationLifecycleState::INSTALLED) {
+      WifiStationLifecycleState::INSTALLED == state) {
     if (changeStateToTryingKnownAccessPoints()) {
       if (!tryNextKnownAccessPoints()) {
         ESP_LOGI(TAG, "No known access point, switch to wps...");
@@ -371,8 +371,6 @@ void WifiStationEsp32::handleIpEventGotIp(void *arg,
   changeStateToConnected();
 
   // copy ip address
-  uint32_t currentIpv4 = event->ip_info.ip.addr;
-  uint8_t *ipBytes = (uint8_t *)&(event->ip_info.ip.addr);
   HostConfigurationDescription desc = {
       .ipAddressFormat = IPV4,
       .ipAddress = {.v4 = {esp_ip4_addr_get_byte(&event->ip_info.ip, 0),
