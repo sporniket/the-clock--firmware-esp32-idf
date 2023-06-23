@@ -306,6 +306,22 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
+# The Clock by Sporniket
+#
+CONFIG_LABEL_TITLE="The Clock by Sporniket"
+
+#
+# Control panel mapping
+#
+CONFIG_PIN_STATUS_MAIN=22
+CONFIG_PIN_BUTTON_MENU=15
+CONFIG_PIN_BUTTON_UP=17
+CONFIG_PIN_BUTTON_DOWN=16
+CONFIG_PIN_BUTTON_BACK=18
+# end of Control panel mapping
+# end of The Clock by Sporniket
+
+#
 # Compiler options
 #
 CONFIG_COMPILER_OPTIMIZATION_DEFAULT=y

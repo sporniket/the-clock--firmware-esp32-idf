@@ -1,0 +1,55 @@
+# Copyright 2021,2022,2023 David SPORN
+# ---
+# This file is part of 'Weather Central'.
+# ---
+# 'Weather Central' is free software: you can redistribute it and/or 
+# modify it under the terms of the GNU General Public License as published 
+# by the Free Software Foundation, either version 3 of the License, or 
+# (at your option) any later version.
+
+# 'Weather Central' is distributed in the hope that it will be useful, 
+# but WITHOUT ANY WARRANTY; without even the implied warranty of 
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General 
+# Public License for more details.
+
+# You should have received a copy of the GNU General Public License along 
+# with 'Weather Central'. If not, see <https://www.gnu.org/licenses/>. 
+
+menu "Control panel mapping"
+
+	config PIN_STATUS_MAIN
+		int "Main LED GPIO number"
+		range 0 34
+		default 22
+		help
+			GPIO number (IOxx) for the 'Main status' LED.
+
+	config PIN_BUTTON_MENU
+		int "BUTTON 'MENU' GPIO number"
+		range 0 39
+		default 15
+		help
+			GPIO number (IOxx) for the button panel : 'menu'/'ok'.
+
+	config PIN_BUTTON_UP
+		int "BUTTON 'UP' GPIO number"
+		range 0 39
+		default 17
+		help
+			GPIO number (IOxx) for the button panel : 'up'.
+
+	config PIN_BUTTON_DOWN
+		int "BUTTON 'DOWN' GPIO number"
+		range 0 39
+		default 16
+		help
+			GPIO number (IOxx) for the button panel : 'down'.
+
+	config PIN_BUTTON_BACK
+		int "BUTTON 'BACK' GPIO number"
+		range 0 39
+		default 18
+		help
+			GPIO number (IOxx) for the button panel : 'back'/'cancel'.
+
+endmenu #"Control panel mapping"
