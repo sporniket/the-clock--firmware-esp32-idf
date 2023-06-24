@@ -27,7 +27,7 @@ WifiHelperEsp32::setupAndRunStation(char *storageName,
                                     HostConfigurationEventListener *listener2,
                                     HostConfigurationEventListener *listener3,
                                     HostConfigurationEventListener *listener4) {
-  WifiEventDispatcherEsp32::install();
+  WifiEventDispatcherEsp32::installHandlers();
 
   // do stuff
   WifiStationEsp32 *station =

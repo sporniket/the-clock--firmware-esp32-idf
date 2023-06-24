@@ -18,6 +18,8 @@
 
 // esp32 includes
 #include "esp_log.h"
+#include "nvs.h"
+#include "nvs_flash.h"
 
 // sdk config
 #include "sdkconfig.h"
@@ -144,6 +146,17 @@ LoggerHostConfigurationEventListener *listener;
 
 void app_main(void) {
   // setup
+  // -- NVS
+  esp_err_t err = nvs_flash_init();
+  if (err == ESP_ERR_NVS_NO_FREE_PAGES ||
+      err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+    // NVS partition was truncated and needs to be erased
+    // Retry nvs_flash_init
+    ESP_ERROR_CHECK(nvs_flash_erase());
+    err = nvs_flash_init();
+  }
+  ESP_ERROR_CHECK(err);
+
   // -- I/O peripherals
   gpio = (new GeneralPurposeInputOutput())
              ->withDigital(new DigitalInputOutputEsp32());
@@ -171,7 +184,8 @@ void app_main(void) {
   buttonWatcher->start();
 
   // -- wifi
-  listener = new LoggerHostConfigurationEventListener() ;
-  wifiStation = WifiHelperEsp32::setupAndRunStation(NAME_STORAGE_WIFI, listener) ;
+  listener = new LoggerHostConfigurationEventListener();
+  wifiStation =
+      WifiHelperEsp32::setupAndRunStation(NAME_STORAGE_WIFI, listener);
   // and voila
 }
