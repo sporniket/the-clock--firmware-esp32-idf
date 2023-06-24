@@ -200,95 +200,6 @@ private:
    */
   void notifyLostHostConfiguration();
 
-  // ========[ Wifi events handlers ]========
-  /**
-   * @brief Event handler for WIFI_EVENT_STA_START.
-   *
-   * @param arg see Esp32 documentation.
-   * @param event_base see Esp32 documentation.
-   * @param event_id see Esp32 documentation.
-   * @param event_data the provided instance of WifiStationEsp32.
-   */
-  void handleWifiEventStationStart(void *arg, esp_event_base_t event_base,
-                                   int32_t event_id, void *event_data);
-
-  /**
-   * @brief Event handler for WIFI_EVENT_STA_DISCONNECTED.
-   *
-   * @param arg see Esp32 documentation.
-   * @param event_base see Esp32 documentation.
-   * @param event_id see Esp32 documentation.
-   * @param event_data the provided instance of WifiStationEsp32.
-   */
-  void handleWifiEventStationDisconnected(void *arg,
-                                          esp_event_base_t event_base,
-                                          int32_t event_id, void *event_data);
-
-  /**
-   * @brief Event handler for WIFI_EVENT_STA_WPS_ER_SUCCESS.
-   *
-   * @param arg see Esp32 documentation.
-   * @param event_base see Esp32 documentation.
-   * @param event_id see Esp32 documentation.
-   * @param event_data the provided instance of WifiStationEsp32.
-   */
-  void handleWifiEventStationWpsEnrolleeSuccess(void *arg,
-                                                esp_event_base_t event_base,
-                                                int32_t event_id,
-                                                void *event_data);
-
-  /**
-   * @brief Event handler for WIFI_EVENT_STA_WPS_ER_FAILED.
-   *
-   * @param arg see Esp32 documentation.
-   * @param event_base see Esp32 documentation.
-   * @param event_id see Esp32 documentation.
-   * @param event_data the provided instance of WifiStationEsp32.
-   */
-  void handleWifiEventStationWpsEnrolleeFailure(void *arg,
-                                                esp_event_base_t event_base,
-                                                int32_t event_id,
-                                                void *event_data);
-
-  /**
-   * @brief Event handler for WIFI_EVENT_STA_WPS_ER_TIMEOUT.
-   *
-   * @param arg see Esp32 documentation.
-   * @param event_base see Esp32 documentation.
-   * @param event_id see Esp32 documentation.
-   * @param event_data the provided instance of WifiStationEsp32.
-   */
-  void handleWifiEventStationWpsEnrolleeTimeout(void *arg,
-                                                esp_event_base_t event_base,
-                                                int32_t event_id,
-                                                void *event_data);
-
-  // ========[ IP events handlers ]========
-  /**
-   * @brief Event handler for IP_EVENT_STA_GOT_IP.
-   *
-   * @param arg see Esp32 documentation.
-   * @param event_base see Esp32 documentation.
-   * @param event_id see Esp32 documentation.
-   * @param event_data the provided instance of WifiStationEsp32.
-   */
-  void handleIpEventGotIp(void *arg, esp_event_base_t event_base,
-                          int32_t event_id, void *event_data);
-
-  /**
-   * @brief Event handler for IP_EVENT_STA_LOST_IP.
-   *
-   * @param arg see Esp32 documentation.
-   * @param event_base see Esp32 documentation.
-   * @param event_id see Esp32 documentation.
-   * @param event_data the provided instance of WifiStationEsp32.
-   */
-  void handleIpEventLostIp(void *arg, esp_event_base_t event_base,
-                           int32_t event_id, void *event_data) {
-    notifyLostHostConfiguration();
-    changeStateToNotConnectedAndIdle();
-  }
-
   // ========[ state management ]========
   /**
    * @brief Try to change the current state to the target state.
@@ -400,6 +311,95 @@ public:
   bool isTryingToConnect() {
     return TRYING_KNOWN_ACCESS_POINTS == state ||
            DONE_TRYING_KNOWN_ACCESS_POINTS == state || TRYING_WPS == state;
+  }
+
+  // ========[ Wifi events handlers ]========
+  /**
+   * @brief Event handler for WIFI_EVENT_STA_START.
+   *
+   * @param arg see Esp32 documentation.
+   * @param event_base see Esp32 documentation.
+   * @param event_id see Esp32 documentation.
+   * @param event_data the provided instance of WifiStationEsp32.
+   */
+  void handleWifiEventStationStart(void *arg, esp_event_base_t event_base,
+                                   int32_t event_id, void *event_data);
+
+  /**
+   * @brief Event handler for WIFI_EVENT_STA_DISCONNECTED.
+   *
+   * @param arg see Esp32 documentation.
+   * @param event_base see Esp32 documentation.
+   * @param event_id see Esp32 documentation.
+   * @param event_data the provided instance of WifiStationEsp32.
+   */
+  void handleWifiEventStationDisconnected(void *arg,
+                                          esp_event_base_t event_base,
+                                          int32_t event_id, void *event_data);
+
+  /**
+   * @brief Event handler for WIFI_EVENT_STA_WPS_ER_SUCCESS.
+   *
+   * @param arg see Esp32 documentation.
+   * @param event_base see Esp32 documentation.
+   * @param event_id see Esp32 documentation.
+   * @param event_data the provided instance of WifiStationEsp32.
+   */
+  void handleWifiEventStationWpsEnrolleeSuccess(void *arg,
+                                                esp_event_base_t event_base,
+                                                int32_t event_id,
+                                                void *event_data);
+
+  /**
+   * @brief Event handler for WIFI_EVENT_STA_WPS_ER_FAILED.
+   *
+   * @param arg see Esp32 documentation.
+   * @param event_base see Esp32 documentation.
+   * @param event_id see Esp32 documentation.
+   * @param event_data the provided instance of WifiStationEsp32.
+   */
+  void handleWifiEventStationWpsEnrolleeFailure(void *arg,
+                                                esp_event_base_t event_base,
+                                                int32_t event_id,
+                                                void *event_data);
+
+  /**
+   * @brief Event handler for WIFI_EVENT_STA_WPS_ER_TIMEOUT.
+   *
+   * @param arg see Esp32 documentation.
+   * @param event_base see Esp32 documentation.
+   * @param event_id see Esp32 documentation.
+   * @param event_data the provided instance of WifiStationEsp32.
+   */
+  void handleWifiEventStationWpsEnrolleeTimeout(void *arg,
+                                                esp_event_base_t event_base,
+                                                int32_t event_id,
+                                                void *event_data);
+
+  // ========[ IP events handlers ]========
+  /**
+   * @brief Event handler for IP_EVENT_STA_GOT_IP.
+   *
+   * @param arg see Esp32 documentation.
+   * @param event_base see Esp32 documentation.
+   * @param event_id see Esp32 documentation.
+   * @param event_data the provided instance of WifiStationEsp32.
+   */
+  void handleIpEventGotIp(void *arg, esp_event_base_t event_base,
+                          int32_t event_id, void *event_data);
+
+  /**
+   * @brief Event handler for IP_EVENT_STA_LOST_IP.
+   *
+   * @param arg see Esp32 documentation.
+   * @param event_base see Esp32 documentation.
+   * @param event_id see Esp32 documentation.
+   * @param event_data the provided instance of WifiStationEsp32.
+   */
+  void handleIpEventLostIp(void *arg, esp_event_base_t event_base,
+                           int32_t event_id, void *event_data) {
+    notifyLostHostConfiguration();
+    changeStateToNotConnectedAndIdle();
   }
 };
 

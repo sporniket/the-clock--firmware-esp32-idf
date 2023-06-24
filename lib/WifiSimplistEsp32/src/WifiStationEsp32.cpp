@@ -23,28 +23,7 @@ WifiStationEsp32::~WifiStationEsp32() {}
 
 // static
 void WifiStationEsp32::install() {
-  ESP_LOGI(TAG, "Installing wifi station event handlers...");
-  ESP_ERROR_CHECK(esp_event_handler_register(
-      WIFI_EVENT, WIFI_EVENT_STA_START,
-      (esp_event_handler_t)&WifiStationEsp32::handleWifiEventStationStart, NULL));
-  ESP_ERROR_CHECK(esp_event_handler_register(
-      WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED,
-      (esp_event_handler_t)&WifiStationEsp32::handleWifiEventStationDisconnected, NULL));
-  ESP_ERROR_CHECK(esp_event_handler_register(
-      WIFI_EVENT, WIFI_EVENT_STA_WPS_ER_SUCCESS,
-      (esp_event_handler_t)&WifiStationEsp32::handleWifiEventStationWpsEnrolleeSuccess, NULL));
-  ESP_ERROR_CHECK(esp_event_handler_register(
-      WIFI_EVENT, WIFI_EVENT_STA_WPS_ER_FAILED,
-      (esp_event_handler_t)&WifiStationEsp32::handleWifiEventStationWpsEnrolleeFailure, NULL));
-  ESP_ERROR_CHECK(esp_event_handler_register(
-      WIFI_EVENT, WIFI_EVENT_STA_WPS_ER_TIMEOUT,
-      (esp_event_handler_t)&WifiStationEsp32::handleWifiEventStationWpsEnrolleeTimeout, NULL));
-  ESP_ERROR_CHECK(esp_event_handler_register(
-      IP_EVENT, IP_EVENT_STA_GOT_IP, (esp_event_handler_t)&WifiStationEsp32::handleIpEventGotIp,
-      NULL));
-  ESP_ERROR_CHECK(esp_event_handler_register(
-      IP_EVENT, IP_EVENT_STA_LOST_IP, (esp_event_handler_t)&WifiStationEsp32::handleIpEventLostIp,
-      NULL));
+  ESP_LOGI(TAG, "Installing wifi station event handlers is not done by WifiStationEsp32...");
   changeStateToInstalled();
 }
 

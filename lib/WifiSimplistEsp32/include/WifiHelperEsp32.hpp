@@ -25,6 +25,7 @@
 // project includes
 #include "WifiCredentialsRegistryDaoUsingNvs.hpp"
 #include "WifiStationEsp32.hpp"
+#include "WifiEventDispatcherEsp32.hpp"
 
 /** @brief What the class is for.
  */

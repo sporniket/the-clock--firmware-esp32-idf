@@ -24,6 +24,6 @@
 
 // project includes
 
-//write code here
+// write code here
 
 #endif
