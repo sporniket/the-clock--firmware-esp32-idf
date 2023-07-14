@@ -12,26 +12,45 @@ static constexpr char *TAG = (char *)"WifiEventDispatcherEsp32";
  */
 static std::vector<WifiStationEsp32 *> listeners;
 
-static void handleWifiEventStationStart(void *arg, esp_event_base_t event_base,
-                                        int32_t event_id, void *event_data);
+// ========[ Code generator macros ]========
+// generate the handler that will loop through each listener to dispatch the
+// event.
+#define DISPATCH_TO(event, event_name, handler_name)                           \
+  case event:                                                                  \
+    ESP_LOGI(TAG, event_name);                                                 \
+    for (std::vector<WifiStationEsp32 *>::iterator it = listeners.begin();     \
+         it != listeners.end(); it++) {                                        \
+      (*it)->handler_name(arg, event_base, event_id, event_data);              \
+    }                                                                          \
+    break;
 
-static void handleWifiEventStationDisconnected(void *arg, esp_event_base_t event_base,
-                                        int32_t event_id, void *event_data);
-
-static void handleWifiEventStationWpsEnrolleeSuccess(void *arg, esp_event_base_t event_base,
-                                        int32_t event_id, void *event_data);
-
-static void handleWifiEventStationWpsEnrolleeFailure(void *arg, esp_event_base_t event_base,
-                                        int32_t event_id, void *event_data);
-
-static void handleWifiEventStationWpsEnrolleeTimeout(void *arg, esp_event_base_t event_base,
-                                        int32_t event_id, void *event_data);
-
-static void handleIpEventGotIp(void *arg, esp_event_base_t event_base,
-                                        int32_t event_id, void *event_data);
-
-static void handleIpEventLostIp(void *arg, esp_event_base_t event_base,
-                                        int32_t event_id, void *event_data);
+// ========[ Event dispatcher ]========
+static void dispatchEvents(void *arg, esp_event_base_t event_base,
+                           int32_t event_id, void *event_data) {
+  if (event_base == WIFI_EVENT) {
+    switch (event_id) {
+      DISPATCH_TO(WIFI_EVENT_STA_START, "WIFI_EVENT_STA_START",
+                  handleWifiEventStationStart)
+      DISPATCH_TO(WIFI_EVENT_STA_DISCONNECTED, "WIFI_EVENT_STA_DISCONNECTED",
+                  handleWifiEventStationDisconnected)
+      DISPATCH_TO(WIFI_EVENT_STA_WPS_ER_SUCCESS,
+                  "WIFI_EVENT_STA_WPS_ER_SUCCESS",
+                  handleWifiEventStationWpsEnrolleeSuccess)
+      DISPATCH_TO(WIFI_EVENT_STA_WPS_ER_FAILED, "WIFI_EVENT_STA_WPS_ER_FAILED",
+                  handleWifiEventStationWpsEnrolleeFailure)
+      DISPATCH_TO(WIFI_EVENT_STA_WPS_ER_TIMEOUT,
+                  "WIFI_EVENT_STA_WPS_ER_TIMEOUT",
+                  handleWifiEventStationWpsEnrolleeTimeout)
+    }
+  } else if (event_base == IP_EVENT) {
+    switch (event_id) {
+      DISPATCH_TO(IP_EVENT_STA_GOT_IP, "IP_EVENT_STA_GOT_IP",
+                  handleIpEventGotIp)
+      DISPATCH_TO(IP_EVENT_STA_LOST_IP, "IP_EVENT_STA_LOST_IP",
+                  handleIpEventLostIp)
+    }
+  }
+}
 
 void WifiEventDispatcherEsp32::installHandlers() {
   ESP_LOGI(TAG, "Installing wifi station event handlers...");
@@ -45,27 +64,27 @@ void WifiEventDispatcherEsp32::installHandlers() {
   ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
   // install event handlers...
-  ESP_ERROR_CHECK(esp_event_handler_register(
-      WIFI_EVENT, WIFI_EVENT_STA_START,
-      (esp_event_handler_t)&handleWifiEventStationStart, NULL));
-  ESP_ERROR_CHECK(esp_event_handler_register(
-      WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED,
-      (esp_event_handler_t)&handleWifiEventStationDisconnected, NULL));
-  ESP_ERROR_CHECK(esp_event_handler_register(
-      WIFI_EVENT, WIFI_EVENT_STA_WPS_ER_SUCCESS,
-      (esp_event_handler_t)&handleWifiEventStationWpsEnrolleeSuccess, NULL));
-  ESP_ERROR_CHECK(esp_event_handler_register(
-      WIFI_EVENT, WIFI_EVENT_STA_WPS_ER_FAILED,
-      (esp_event_handler_t)&handleWifiEventStationWpsEnrolleeFailure, NULL));
-  ESP_ERROR_CHECK(esp_event_handler_register(
-      WIFI_EVENT, WIFI_EVENT_STA_WPS_ER_TIMEOUT,
-      (esp_event_handler_t)&handleWifiEventStationWpsEnrolleeTimeout, NULL));
-  ESP_ERROR_CHECK(esp_event_handler_register(
-      IP_EVENT, IP_EVENT_STA_GOT_IP, (esp_event_handler_t)&handleIpEventGotIp,
-      NULL));
-  ESP_ERROR_CHECK(esp_event_handler_register(
-      IP_EVENT, IP_EVENT_STA_LOST_IP, (esp_event_handler_t)&handleIpEventLostIp,
-      NULL));
+  ESP_ERROR_CHECK(
+      esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_START,
+                                 (esp_event_handler_t)&dispatchEvents, NULL));
+  ESP_ERROR_CHECK(
+      esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED,
+                                 (esp_event_handler_t)&dispatchEvents, NULL));
+  ESP_ERROR_CHECK(
+      esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_WPS_ER_SUCCESS,
+                                 (esp_event_handler_t)&dispatchEvents, NULL));
+  ESP_ERROR_CHECK(
+      esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_WPS_ER_FAILED,
+                                 (esp_event_handler_t)&dispatchEvents, NULL));
+  ESP_ERROR_CHECK(
+      esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_WPS_ER_TIMEOUT,
+                                 (esp_event_handler_t)&dispatchEvents, NULL));
+  ESP_ERROR_CHECK(
+      esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP,
+                                 (esp_event_handler_t)&dispatchEvents, NULL));
+  ESP_ERROR_CHECK(
+      esp_event_handler_register(IP_EVENT, IP_EVENT_STA_LOST_IP,
+                                 (esp_event_handler_t)&dispatchEvents, NULL));
 }
 
 void WifiEventDispatcherEsp32::addListener(WifiStationEsp32 *listener) {
@@ -80,33 +99,3 @@ void WifiEventDispatcherEsp32::addListener(WifiStationEsp32 *listener) {
   }
   listeners.push_back(listener);
 }
-
-// ========[ Code generator macros ]========
-// generate the handler that will loop through each listener to dispatch the
-// event.
-#define GENERATE_HANDLER(event_name, handler_name)                             \
-  static void handler_name(void *arg, esp_event_base_t event_base,             \
-                           int32_t event_id, void *event_data) {               \
-    ESP_LOGI(TAG, event_name);                                                 \
-    for (std::vector<WifiStationEsp32 *>::iterator it = listeners.begin();     \
-         it != listeners.end(); it++) {                                        \
-      (*it)->handler_name(arg, event_base, event_id, event_data);              \
-    }                                                                          \
-  }
-
-// ========[ Wifi events handlers ]========
-GENERATE_HANDLER("WIFI_EVENT_STA_START", handleWifiEventStationStart)
-GENERATE_HANDLER("WIFI_EVENT_STA_DISCONNECTED",
-                 handleWifiEventStationDisconnected)
-GENERATE_HANDLER("WIFI_EVENT_STA_WPS_ER_SUCCESS",
-                 handleWifiEventStationWpsEnrolleeSuccess)
-GENERATE_HANDLER("WIFI_EVENT_STA_WPS_ER_FAILED",
-                 handleWifiEventStationWpsEnrolleeFailure)
-GENERATE_HANDLER("WIFI_EVENT_STA_WPS_ER_TIMEOUT",
-                 handleWifiEventStationWpsEnrolleeTimeout)
-
-// ========[ IP events handlers ]========
-GENERATE_HANDLER("IP_EVENT_STA_GOT_IP", handleIpEventGotIp)
-GENERATE_HANDLER("IP_EVENT_STA_LOST_IP", handleIpEventLostIp)
-
-// ========[ --- ]========
