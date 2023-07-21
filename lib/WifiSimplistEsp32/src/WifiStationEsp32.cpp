@@ -45,10 +45,6 @@ bool WifiStationEsp32::changeStateToConnected() {
                        wifi_config_known_ap.sta.password, PASSWORD);
     wcreg.setPreferred(&wc);
   } else if (TRYING_WPS == state) {
-    WifiCredentials wc(wpsCredentials[wpsCredentialsCurrent].sta.ssid,
-                       wpsCredentials[wpsCredentialsCurrent].sta.password,
-                       PASSWORD);
-    wcreg.put(&wc);
   }
   wcregdao->saveFrom(&wcreg);
 
@@ -66,7 +62,11 @@ bool WifiStationEsp32::changeStateToNotConnectedAndIdle() {
     return false;
   }
 
-  ESP_ERROR_CHECK(esp_wifi_wps_disable());
+  if (wcreg.getSize() == 0) {
+    ESP_ERROR_CHECK(esp_wifi_wps_disable());
+  } else {
+    // TODO ? disable wifi
+  }
 
   state = NOT_CONNECTED_AND_IDLE;
   return true;
@@ -77,7 +77,7 @@ bool WifiStationEsp32::changeStateToTryingWps() {
     ESP_LOGD(TAG, "Already in a state 'trying wps'.");
     return false;
   }
-  if (DONE_TRYING_KNOWN_ACCESS_POINTS != state) {
+  if (INSTALLED != state && NOT_CONNECTED_AND_IDLE != state) {
     ESP_LOGW(TAG, "Not in a state that can be changed to 'trying wps.");
     return false;
   }
@@ -115,12 +115,6 @@ bool WifiStationEsp32::changeStateToTryingKnownAccessPoints() {
   }
 
   wcreg.rewind();
-  if (wcreg.getSize() == 0) {
-    ESP_LOGW(TAG, "No known access points, change to 'done trying known access points'.");
-    state = DONE_TRYING_KNOWN_ACCESS_POINTS ;
-    return false;
-  }
-
   ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config_known_ap));
 
   state = TRYING_KNOWN_ACCESS_POINTS;
@@ -244,10 +238,9 @@ void WifiStationEsp32::tryToConnect() {
   }
   if (WifiStationLifecycleState::NOT_CONNECTED_AND_IDLE == state ||
       WifiStationLifecycleState::INSTALLED == state) {
-    if (changeStateToTryingKnownAccessPoints()) {
-      tryNextKnownAccessPoints() ;
-    } else if (DONE_TRYING_KNOWN_ACCESS_POINTS == state) {
-      ESP_LOGI(TAG, "No known access point, switch to wps...");
+    if (wcreg.getSize() > 0 && changeStateToTryingKnownAccessPoints()) {
+      tryNextKnownAccessPoints();
+    } else {
       changeStateToTryingWps();
     }
   }

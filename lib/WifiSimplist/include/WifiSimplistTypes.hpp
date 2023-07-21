@@ -52,10 +52,11 @@ enum WifiKeyType {
     CREATED -->|add wifi credential dao and listeners| READY_TO_INIT
     READY_TO_INIT -->|reload wifi credentials| READY_TO_INSTALL
     READY_TO_INSTALL --> |Install event handlers| INSTALLED
-    INSTALLED --> TRYING_KNOWN_ACCESS_POINTS
+    INSTALLED --> |Has known access points| TRYING_KNOWN_ACCESS_POINTS
+    INSTALLED --> |Has no known access points| TRYING_WPS
     TRYING_KNOWN_ACCESS_POINTS --> |No more known access points| DONE_TRYING_KNOWN_ACCESS_POINTS
     TRYING_KNOWN_ACCESS_POINTS --> |Got connection| CONNECTED
-    DONE_TRYING_KNOWN_ACCESS_POINTS --> TRYING_WPS
+    DONE_TRYING_KNOWN_ACCESS_POINTS --> NOT_CONNECTED_AND_IDLE
     TRYING_WPS --> |Got connection| CONNECTED
     TRYING_WPS --> |No success, can retry| TRYING_WPS
     TRYING_WPS --> |No success, no more retry| NOT_CONNECTED_AND_IDLE
@@ -91,8 +92,7 @@ enum WifiStationLifecycleState {
    */
   DONE_TRYING_KNOWN_ACCESS_POINTS,
   /**
-   * @brief Attempt to connect to known access point failed or timed out, trying
-   * through wps.
+   * @brief Trying to connect through wps.
    */
   TRYING_WPS,
   /**
