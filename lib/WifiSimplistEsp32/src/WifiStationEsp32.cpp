@@ -23,13 +23,14 @@ WifiStationEsp32::~WifiStationEsp32() {}
 
 // static
 void WifiStationEsp32::install() {
-  ESP_LOGI(TAG, "Installing wifi station event handlers is not done by WifiStationEsp32...");
+  ESP_LOGI(TAG, "Installing wifi station event handlers is not done by "
+                "WifiStationEsp32...");
   changeStateToInstalled();
 }
 
 // ========[ state management ]========
 bool WifiStationEsp32::changeStateToConnected() {
-  if(CONNECTED == state) {
+  if (CONNECTED == state) {
     ESP_LOGD(TAG, "Already in a state 'connected'.");
     return false;
   }
@@ -113,8 +114,14 @@ bool WifiStationEsp32::changeStateToTryingKnownAccessPoints() {
     return false;
   }
 
-  ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config_known_ap));
   wcreg.rewind();
+  if (wcreg.getSize() == 0) {
+    ESP_LOGW(TAG, "No known access points, change to 'done trying known access points'.");
+    state = DONE_TRYING_KNOWN_ACCESS_POINTS ;
+    return false;
+  }
+
+  ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config_known_ap));
 
   state = TRYING_KNOWN_ACCESS_POINTS;
   return true;
@@ -176,10 +183,6 @@ bool WifiStationEsp32::changeStateToReadyToInit() {
 // ========[ --- ]========
 
 bool WifiStationEsp32::tryNextKnownAccessPoints() {
-  if (!wcreg.hasNext()) {
-    changeStateToDoneTryingKnownAccessPoints();
-    return false;
-  }
   WifiCredentials *wc = wcreg.next();
   ESP_LOGI(TAG, "Connecting to known SSID: %s", wc->getSsid());
   setupCredentials(wifi_config_known_ap, wc->getSsid(), wc->getKey());
@@ -242,25 +245,20 @@ void WifiStationEsp32::tryToConnect() {
   if (WifiStationLifecycleState::NOT_CONNECTED_AND_IDLE == state ||
       WifiStationLifecycleState::INSTALLED == state) {
     if (changeStateToTryingKnownAccessPoints()) {
-      if (!tryNextKnownAccessPoints()) {
-        ESP_LOGI(TAG, "No known access point, switch to wps...");
-        changeStateToTryingWps();
-      }
+      tryNextKnownAccessPoints() ;
+    } else if (DONE_TRYING_KNOWN_ACCESS_POINTS == state) {
+      ESP_LOGI(TAG, "No known access point, switch to wps...");
+      changeStateToTryingWps();
     }
   }
 }
 
 // ========[ Wifi events handlers ]========
-void WifiStationEsp32::handleWifiEventStationStart(void *arg,
-                                                   esp_event_base_t event_base,
-                                                   int32_t event_id,
-                                                   void *event_data) {
+void WifiStationEsp32::handleWifiEventStationStart(void *event_data) {
   ESP_LOGI(TAG, "WIFI_EVENT_STA_START");
 }
 
-void WifiStationEsp32::handleWifiEventStationDisconnected(
-    void *arg, esp_event_base_t event_base, int32_t event_id,
-    void *event_data) {
+void WifiStationEsp32::handleWifiEventStationDisconnected(void *event_data) {
   ESP_LOGI(TAG, "WIFI_EVENT_STA_DISCONNECTED");
   // select next step according to state
   if (TRYING_KNOWN_ACCESS_POINTS == state) {
@@ -288,7 +286,6 @@ void WifiStationEsp32::handleWifiEventStationDisconnected(
 }
 
 void WifiStationEsp32::handleWifiEventStationWpsEnrolleeSuccess(
-    void *arg, esp_event_base_t event_base, int32_t event_id,
     void *event_data) {
   ESP_LOGI(TAG, "WIFI_EVENT_STA_WPS_ER_SUCCESS");
   wifi_event_sta_wps_er_success_t *evt =
@@ -312,7 +309,6 @@ void WifiStationEsp32::handleWifiEventStationWpsEnrolleeSuccess(
 }
 
 void WifiStationEsp32::handleWifiEventStationWpsEnrolleeFailure(
-    void *arg, esp_event_base_t event_base, int32_t event_id,
     void *event_data) {
   ESP_LOGI(TAG, "WIFI_EVENT_STA_WPS_ER_FAILED");
   if (0 == remainingRetriesForWps) {
@@ -324,7 +320,6 @@ void WifiStationEsp32::handleWifiEventStationWpsEnrolleeFailure(
 }
 
 void WifiStationEsp32::handleWifiEventStationWpsEnrolleeTimeout(
-    void *arg, esp_event_base_t event_base, int32_t event_id,
     void *event_data) {
   ESP_LOGI(TAG, "WIFI_EVENT_STA_WPS_ER_TIMEOUT");
   if (0 == remainingRetriesForWps) {
@@ -339,9 +334,7 @@ void WifiStationEsp32::handleWifiEventStationWpsEnrolleeTimeout(
 //#define esp_ip4_addr_get_byte(ipaddr, idx) (((const
 // uint8_t*)(&(ipaddr)->addr))[idx])
 
-void WifiStationEsp32::handleIpEventGotIp(void *arg,
-                                          esp_event_base_t event_base,
-                                          int32_t event_id, void *event_data) {
+void WifiStationEsp32::handleIpEventGotIp(void *event_data) {
   ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
   ESP_LOGI(TAG, "got ip: " IPSTR, IP2STR(&event->ip_info.ip));
   ESP_LOGI(TAG, "got network mask: " IPSTR, IP2STR(&event->ip_info.netmask));

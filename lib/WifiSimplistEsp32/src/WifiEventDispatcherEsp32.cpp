@@ -15,12 +15,12 @@ static std::vector<WifiStationEsp32 *> listeners;
 // ========[ Code generator macros ]========
 // generate the handler that will loop through each listener to dispatch the
 // event.
-#define DISPATCH_TO(event, event_name, handler_name)                           \
+#define DISPATCH(event, event_name, handler_name)                              \
   case event:                                                                  \
     ESP_LOGI(TAG, event_name);                                                 \
     for (std::vector<WifiStationEsp32 *>::iterator it = listeners.begin();     \
          it != listeners.end(); it++) {                                        \
-      (*it)->handler_name(arg, event_base, event_id, event_data);              \
+      (*it)->handler_name(event_data);                                         \
     }                                                                          \
     break;
 
@@ -29,25 +29,22 @@ static void dispatchEvents(void *arg, esp_event_base_t event_base,
                            int32_t event_id, void *event_data) {
   if (event_base == WIFI_EVENT) {
     switch (event_id) {
-      DISPATCH_TO(WIFI_EVENT_STA_START, "WIFI_EVENT_STA_START",
-                  handleWifiEventStationStart)
-      DISPATCH_TO(WIFI_EVENT_STA_DISCONNECTED, "WIFI_EVENT_STA_DISCONNECTED",
-                  handleWifiEventStationDisconnected)
-      DISPATCH_TO(WIFI_EVENT_STA_WPS_ER_SUCCESS,
-                  "WIFI_EVENT_STA_WPS_ER_SUCCESS",
-                  handleWifiEventStationWpsEnrolleeSuccess)
-      DISPATCH_TO(WIFI_EVENT_STA_WPS_ER_FAILED, "WIFI_EVENT_STA_WPS_ER_FAILED",
-                  handleWifiEventStationWpsEnrolleeFailure)
-      DISPATCH_TO(WIFI_EVENT_STA_WPS_ER_TIMEOUT,
-                  "WIFI_EVENT_STA_WPS_ER_TIMEOUT",
-                  handleWifiEventStationWpsEnrolleeTimeout)
+      DISPATCH(WIFI_EVENT_STA_START, "WIFI_EVENT_STA_START",
+               handleWifiEventStationStart)
+      DISPATCH(WIFI_EVENT_STA_DISCONNECTED, "WIFI_EVENT_STA_DISCONNECTED",
+               handleWifiEventStationDisconnected)
+      DISPATCH(WIFI_EVENT_STA_WPS_ER_SUCCESS, "WIFI_EVENT_STA_WPS_ER_SUCCESS",
+               handleWifiEventStationWpsEnrolleeSuccess)
+      DISPATCH(WIFI_EVENT_STA_WPS_ER_FAILED, "WIFI_EVENT_STA_WPS_ER_FAILED",
+               handleWifiEventStationWpsEnrolleeFailure)
+      DISPATCH(WIFI_EVENT_STA_WPS_ER_TIMEOUT, "WIFI_EVENT_STA_WPS_ER_TIMEOUT",
+               handleWifiEventStationWpsEnrolleeTimeout)
     }
   } else if (event_base == IP_EVENT) {
     switch (event_id) {
-      DISPATCH_TO(IP_EVENT_STA_GOT_IP, "IP_EVENT_STA_GOT_IP",
-                  handleIpEventGotIp)
-      DISPATCH_TO(IP_EVENT_STA_LOST_IP, "IP_EVENT_STA_LOST_IP",
-                  handleIpEventLostIp)
+      DISPATCH(IP_EVENT_STA_GOT_IP, "IP_EVENT_STA_GOT_IP", handleIpEventGotIp)
+      DISPATCH(IP_EVENT_STA_LOST_IP, "IP_EVENT_STA_LOST_IP",
+               handleIpEventLostIp)
     }
   }
 }
