@@ -44,10 +44,11 @@ bool WifiStationEsp32::changeStateToConnected() {
     WifiCredentials wc(wifi_config_known_ap.sta.ssid,
                        wifi_config_known_ap.sta.password, PASSWORD);
     wcreg.setPreferred(&wc);
+    wcregdao->saveFrom(&wcreg);
   } else if (TRYING_WPS == state) {
   }
-  wcregdao->saveFrom(&wcreg);
 
+  ESP_LOGI(TAG, "Changing state to 'connected'.");
   state = CONNECTED;
   return true;
 }
@@ -68,6 +69,7 @@ bool WifiStationEsp32::changeStateToNotConnectedAndIdle() {
     // TODO ? disable wifi
   }
 
+  ESP_LOGI(TAG, "Changing state to 'not connected and idle'.");
   state = NOT_CONNECTED_AND_IDLE;
   return true;
 }
@@ -77,14 +79,16 @@ bool WifiStationEsp32::changeStateToTryingWps() {
     ESP_LOGD(TAG, "Already in a state 'trying wps'.");
     return false;
   }
-  if (INSTALLED != state && NOT_CONNECTED_AND_IDLE != state) {
+  if (INSTALLED != state && NOT_CONNECTED_AND_IDLE != state &&
+      DONE_TRYING_KNOWN_ACCESS_POINTS != state) {
     ESP_LOGW(TAG, "Not in a state that can be changed to 'trying wps.");
     return false;
   }
 
+  ESP_LOGI(TAG, "Changing state to 'trying wps'.");
+  state = TRYING_WPS;
   startWps();
 
-  state = TRYING_WPS;
   return true;
 }
 
@@ -99,6 +103,7 @@ bool WifiStationEsp32::changeStateToDoneTryingKnownAccessPoints() {
     return false;
   }
 
+  ESP_LOGI(TAG, "Changing state to 'done trying known access points'.");
   state = DONE_TRYING_KNOWN_ACCESS_POINTS;
   return true;
 }
@@ -117,6 +122,7 @@ bool WifiStationEsp32::changeStateToTryingKnownAccessPoints() {
   wcreg.rewind();
   ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config_known_ap));
 
+  ESP_LOGI(TAG, "Changing state to 'trying known access points'.");
   state = TRYING_KNOWN_ACCESS_POINTS;
   return true;
 }
@@ -131,6 +137,7 @@ bool WifiStationEsp32::changeStateToInstalled() {
     return false;
   }
 
+  ESP_LOGI(TAG, "Changing state to 'installed'.");
   state = INSTALLED;
   return true;
 }
@@ -147,6 +154,7 @@ bool WifiStationEsp32::changeStateToReadyToInstall() {
 
   wcregdao->loadInto(&wcreg);
 
+  ESP_LOGI(TAG, "Changing state to 'ready to install'.");
   state = READY_TO_INSTALL;
   return true;
 }
@@ -170,6 +178,7 @@ bool WifiStationEsp32::changeStateToReadyToInit() {
     return false;
   }
 
+  ESP_LOGI(TAG, "Changing state to 'ready to init'.");
   state = READY_TO_INIT;
   return true;
 }
@@ -229,17 +238,40 @@ void WifiStationEsp32::init() {
     ESP_LOGW(TAG,
              "Could not restore saved credentials -or nothing to restore-.");
   }
-  changeStateToReadyToInstall();
+  esp_netif_config_t enct = ESP_NETIF_DEFAULT_WIFI_STA();
+  if (NULL == enct.base->if_key) {
+    ESP_LOGW(TAG, "esp_netif_config_t.base->if_key is NULL");
+  }
+
+  ESP_LOGI(TAG, "WILL Create default wifi station...");
+  esp_netif_t *sta_netif = esp_netif_create_default_wifi_sta();
+  ESP_LOGI(TAG, "DONE Create default wifi station.");
+
+  assert(sta_netif);
+  if (nullptr != sta_netif) {
+    ESP_LOGI(TAG, "WILL Initialize wifi...");
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    ESP_LOGI(TAG, "DONE Initialize wifi.");
+    changeStateToReadyToInstall();
+  }
 }
 
 void WifiStationEsp32::tryToConnect() {
   if (READY_TO_INSTALL == state) {
     install();
   }
+
+  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+  ESP_ERROR_CHECK(esp_wifi_start());
+
   if (WifiStationLifecycleState::NOT_CONNECTED_AND_IDLE == state ||
       WifiStationLifecycleState::INSTALLED == state) {
-    if (wcreg.getSize() > 0 && changeStateToTryingKnownAccessPoints()) {
-      tryNextKnownAccessPoints();
+    if (wcreg.getSize() > 0) {
+      if (changeStateToTryingKnownAccessPoints()) {
+        tryNextKnownAccessPoints();
+      } else {
+        changeStateToTryingWps();
+      }
     } else {
       changeStateToTryingWps();
     }
@@ -262,6 +294,7 @@ void WifiStationEsp32::handleWifiEventStationDisconnected(void *event_data) {
     }
   } else if (TRYING_WPS == state) {
     if (remainingRetriesForAccessPoint > 0) {
+      ESP_LOGI(TAG, "Try wps again, %d attempt remaining...", remainingRetriesForWps);
       tryAgainConnect();
     } else if (0 < wpsCredentialsCount &&
                wpsCredentialsCurrent < wpsCredentialsCount) {

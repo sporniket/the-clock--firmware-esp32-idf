@@ -94,7 +94,7 @@ private:
    * @brief Keep track of the remaining number of attempts to connecting to an
    * access point.
    */
-  uint8_t remainingRetriesForAccessPoint;
+  uint8_t remainingRetriesForAccessPoint = MAX_RETRY;
   /**
    * @brief Keep track of the remaining number of attempts to use wps to scan
    * and get a connection to an access point.
@@ -120,6 +120,16 @@ private:
   /** @brief Current access point to connect to.
    */
   int wpsCredentialsCurrent = 0;
+
+  /**
+   * @brief Wifi initialization config
+   */
+  wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+
+  /**
+   * @brief Station network interface
+   */
+  esp_netif_t *sta_netif ;
 
   /**
    * @brief Wifi config to be used with known access points
@@ -267,7 +277,7 @@ public:
   }
   WifiStationEsp32 *
   withHostConfigurationEventListener(HostConfigurationEventListener *listener) {
-    if(nullptr == listener) {
+    if (nullptr == listener) {
       return this;
     }
     if (0 == hostConfigurationListeners.count(listener)) {
@@ -276,6 +286,13 @@ public:
     changeStateToReadyToInit();
     return this;
   }
+
+  /**
+   * @brief Returns whether it is ok to proceed with install.
+   *
+   * @return false when something prevented the use of wifi.
+   */
+  bool isReadyToInstall() { return state == READY_TO_INSTALL; }
 
   /**
    * @brief Install the wifi station event handlers.
