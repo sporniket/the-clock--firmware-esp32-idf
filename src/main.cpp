@@ -34,6 +34,8 @@
 // -- wifi
 #include "WifiHelperEsp32.hpp"
 #include "WifiSimplist.hpp"
+// -- timekeepers
+#include "NetworkTimeKeeperEsp32.hpp"
 
 extern "C" {
 void app_main(void);
@@ -143,6 +145,8 @@ FeedbackLed *mainLed;
 // -- wifi
 WifiStationEsp32 *wifiStation;
 LoggerHostConfigurationEventListener *listener;
+NetworkTimeKeeperEsp32 *networkTimeKeeper;
+
 
 void app_main(void) {
   // setup
@@ -185,7 +189,8 @@ void app_main(void) {
 
   // -- wifi
   listener = new LoggerHostConfigurationEventListener();
+  networkTimeKeeper = new NetworkTimeKeeperEsp32() ;
   wifiStation =
-      WifiHelperEsp32::setupAndRunStation(NAME_STORAGE_WIFI, listener);
+      WifiHelperEsp32::setupAndRunStation(NAME_STORAGE_WIFI, listener, networkTimeKeeper);
   // and voila
 }
