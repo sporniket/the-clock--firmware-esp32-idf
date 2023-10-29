@@ -114,6 +114,7 @@ private:
   int iicPort;
   bool iicReady = false;
   DisplayMode mode = GREETINGS;
+  bool nightTimeMode = false;
   /**
    * @brief The display buffer will 4 steps of animation.
    *
@@ -226,6 +227,8 @@ public:
         }
 
         // update display
+        displayRegisters.control.brightness = nightTimeMode ? 1 : 7;
+
         uint8_t buffer_start = phase * 4;
         displayRegisters.data.digits[0] =
             font->glyphData[(uint8_t)buffer[buffer_start]];
@@ -274,6 +277,7 @@ public:
    */
   bool isBusy() { return ttl > 0 || changeToApply || !iicReady; }
   DisplayMode getMode() { return mode; }
+  void setNightTime(bool value) { nightTimeMode = value; }
 
   // ----- setup iic
   void setupIic(uint8_t iicPort, const i2c_config_t *conf) {
@@ -309,7 +313,15 @@ private:
 
   char timeBuffer[5]; // 4 digits + string terminator
   time_t now = 0;
-  struct tm timeinfo = {0};
+  struct tm timeinfo = {.tm_sec = 0,
+                        .tm_min = 0,
+                        .tm_hour = 0,
+                        .tm_mday = 0,
+                        .tm_mon = 0,
+                        .tm_year = 0,
+                        .tm_wday = 0,
+                        .tm_yday = 0,
+                        .tm_isdst = 0};
 
 public:
   virtual ~TheClockTask() {
@@ -329,10 +341,14 @@ public:
       if (0 == phaseTime) {
         time(&now);
         localtime_r(&now, &timeinfo);
+
+        // update displayed time buffer
         strftime(timeBuffer, sizeof(timeBuffer), "%H%M", &timeinfo);
       }
       if (hasDisplay()) {
         // processing requiring the display
+        display->setNightTime(timeinfo.tm_hour < 8 || timeinfo.tm_hour >= 20);
+
         if (!display->isBusy()) {
           // processing requiring an IDLE display (no pending update)
           switch (display->getMode()) {
@@ -458,7 +474,6 @@ WifiStationEsp32 *wifiStation;
 LoggerHostConfigurationEventListener *listener;
 NetworkTimeKeeperEsp32 *networkTimeKeeper;
 
-
 void app_main(void) {
   // setup
   // -- NVS
@@ -529,8 +544,8 @@ void app_main(void) {
 
   // -- wifi
   listener = new LoggerHostConfigurationEventListener();
-  networkTimeKeeper = new NetworkTimeKeeperEsp32(CONFIG_SNTP_TIME_SERVER) ;
-  wifiStation =
-      WifiHelperEsp32::setupAndRunStation(NAME_STORAGE_WIFI, listener, networkTimeKeeper);
+  networkTimeKeeper = new NetworkTimeKeeperEsp32(CONFIG_SNTP_TIME_SERVER);
+  wifiStation = WifiHelperEsp32::setupAndRunStation(NAME_STORAGE_WIFI, listener,
+                                                    networkTimeKeeper);
   // and voila
 }
