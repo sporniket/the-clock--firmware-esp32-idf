@@ -15,16 +15,29 @@
 # You should have received a copy of the GNU General Public License along 
 # with 'Weather Central'. If not, see <https://www.gnu.org/licenses/>. 
 
-menu "The Clock by Sporniket"
+menu "IIC controller #1"
+	# to do : enabler
+	# to do : work as HOST or PERIPHERAL
 
-	config LABEL_TITLE
-		string "Project title"
-		default "The Clock by Sporniket"
+	config IIC_1_CLK_FREQ_HZ
+	    int "IIC Clock (Hz)"
+		range 10000 1000000
+		default 250000
 		help
-			Use this label when you want to show an unlocalized title.
+			Frequency in Hertz of the IIC clock.
 
-	rsource "Kconfig-control-panel-mapping.projbuild"
+	config PIN_IIC_1_SCL
+		int "GPIO Serial Clock"
+		range 0 34
+		default 32
+		help
+			GPIO number (IOxx) for the serial clock line.
 
-	rsource "Kconfig-iic-controller-1.projbuild"
+	config PIN_IIC_1_SDA
+		int "GPIO Serial Data"
+		range 0 39
+		default 33
+		help
+			GPIO number (IOxx) for the serial data line.
 
-endmenu #"WEATHER CENTRAL"
+endmenu #"Control panel mapping"

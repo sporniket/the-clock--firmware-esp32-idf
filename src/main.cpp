@@ -16,7 +16,11 @@
 // with 'ESP32/IDF workspace for IIC'. If not, see
 // <https://www.gnu.org/licenses/>. 
 
+// standard
+// include <cstring>
+
 // esp32 includes
+#include "driver/i2c.h"
 #include "esp_log.h"
 #include "nvs.h"
 #include "nvs_flash.h"
@@ -34,10 +38,36 @@
 // -- wifi
 #include "WifiHelperEsp32.hpp"
 #include "WifiSimplist.hpp"
+// -- Display
+#include "SevenSegmentsFont.hpp"
+#include "Tm1637IicBridgeEsp32.hpp"
 
 extern "C" {
 void app_main(void);
 }
+
+//====================================================================
+// -- BRAINSTORMING
+enum TimeKeepingEvents {
+  POWER_ON_RESET, // on power on, time is unknown ; if there is an RTC -->
+                  // READING_RTC
+  UNSYNCHRONIZED, // displayed time may be not wrong, but drifting or garbage is
+                  // likely
+  SYNCHRONIZED,   // when time has been set
+  READING_RTC,    // when synchronizing from RTC
+  READING_RTC_DONE,     // --> success --> SYNCHONIZED
+  READING_RTC_FAIL,     // --> fail --> UNSYNCHRONIZED
+  WRITING_RTC,          // when saving synchronized time to RTC
+  WRITING_RTC_DONE,     // --> SYNCHRONIZED
+  WRITING_RTC_FAIL,     // --> SYNCHRONIZED anyway (require a RTC lifecycle)
+  MANUAL_SETTING,       // Time is being adjusted manually
+  MANUAL_SETTING_DONE,  // Time has been set
+  NETWORK_TIME_PROBING, // start requesting from ntp
+  NETWORK_TIME_PROBING_DONE, // start requesting from ntp
+  NETWORK_TIME_PROBING_FAIL, // start requesting from ntp
+  NETWORK_TIME_DONE,         //
+};
+//====================================================================
 
 //====================================================================
 // GPIO pins affectation from configuration
@@ -46,6 +76,8 @@ void app_main(void);
 
 static constexpr char *TAG = (char *)"the-clock";
 static constexpr char *NAME_STORAGE_WIFI = (char *)"tclk_wcreg";
+
+static constexpr char *GREETINGS_STRING = (char *)CONFIG_LABEL_TITLE;
 
 class LoggerHostConfigurationEventListener
     : public HostConfigurationEventListener {
@@ -63,6 +95,258 @@ public:
   }
 };
 
+//====================================================================
+// --- the clock display
+enum DisplayMode { GREETINGS, TIME, CHANGE_HOUR, CHANGE_MINUTES, MENU };
+
+const char FILL_CHAR = 0x20;    // a.k.a. ASCII space character
+const uint8_t DOT_BIT = 1 << 7; // To light the separator colon
+const uint8_t PHASE_MAX = 4;
+
+// Sample task : display updater
+class DisplayUpdaterTask : public Task {
+private:
+  const uint8_t TTL_GREETINGS = 1;
+  Tm1637IicBridgeEsp32 iicBridge = Tm1637IicBridgeEsp32();
+  Tm1637Registers displayRegisters;
+  int iicPort;
+  bool iicReady = false;
+  DisplayMode mode = GREETINGS;
+  /**
+   * @brief The display buffer will 4 steps of animation.
+   *
+   * * No animation when displaying greetings
+   * * 2 phases animation when displaying time (blinking the colon separator or
+   * not)
+   * * 4 phases animation when setting the clock (one field blinking and the
+   * blinking colon in quadrature)
+   * * 4 phases animation in menu mode (blinking text and the blinking colon in
+   * quadrature)
+   *
+   * All of these animation (or lack of) will be expanded into the 4 steps.
+   */
+  char buffer[16];
+  /**
+   * @brief Intermediate buffer to store the instructed change of the content to
+   * display.
+   *
+   * To avoid displaying in the middle of changing.
+   */
+  char bufferChange[4];
+  /**
+   * @brief When bufferChange must be applied.
+   */
+  bool changeToApply = false;
+  /**
+   * @brief Select mode to apply BEFORE setting new content
+   */
+  DisplayMode modeToApply = GREETINGS;
+
+  /**
+   * @brief The animation phase will be updated every 0.2 seconds.
+   */
+  uint8_t phase = 0;
+
+  uint8_t ttl = 0;
+
+  SevenSegmentFont *font = (SevenSegmentFont *)&SevenSegmentsFontUsAscii;
+
+  void applyChange() {
+    mode = modeToApply;
+    // step 1 : blind copy
+    char *dst = buffer;
+    for (uint8_t i = 0; i < 4; i++) {
+      std::memcpy(dst, bufferChange, 4);
+      dst += 4;
+    }
+  }
+
+  void applyChange2() {
+    mode = modeToApply;
+    // step 1 : blind copy
+    char *dst = buffer;
+    // step 2 : clear where it needs (2 phase over 4)
+    dst = buffer + 8;
+    if (MENU == mode || CHANGE_HOUR == mode) {
+      dst[0] = FILL_CHAR;
+      dst[1] = FILL_CHAR;
+      dst[4] = FILL_CHAR;
+      dst[5] = FILL_CHAR;
+    }
+    if (MENU == mode || CHANGE_MINUTES == mode) {
+      dst[2] = FILL_CHAR;
+      dst[3] = FILL_CHAR;
+      dst[6] = FILL_CHAR;
+      dst[7] = FILL_CHAR;
+    }
+  }
+
+public:
+  DisplayUpdaterTask() {
+    for (uint8_t i = 0; i < 16; i++) {
+      buffer[i] = FILL_CHAR;
+    }
+  }
+  virtual ~DisplayUpdaterTask() {}
+
+  void run(void *data) {
+    const TickType_t SLEEP_TIME = 250 / portTICK_PERIOD_MS; // 4 Hz
+
+    while (true) {
+      if (iicReady) {
+        if (ttl > 0) {
+          --ttl;
+        }
+
+        // commit pending changes
+        if (0 == ttl && changeToApply) {
+          applyChange();
+          changeToApply = false;
+          switch (mode) {
+          case GREETINGS:
+            ttl = TTL_GREETINGS;
+            break;
+          case TIME:
+            break;
+          case CHANGE_HOUR:
+            break;
+          case CHANGE_MINUTES:
+            break;
+          case MENU:
+            break;
+          }
+        }
+
+        // animation management
+        ++phase;
+        if (phase >= PHASE_MAX) {
+          phase = 0;
+        }
+
+        // update display
+        uint8_t buffer_start = phase * 4;
+        displayRegisters.data.digits[0] =
+            font->glyphData[(uint8_t)buffer[buffer_start]];
+        if (phase - 1 < 2) {
+          displayRegisters.data.digits[1] =
+              font->glyphData[(uint8_t)buffer[buffer_start + 1]] | DOT_BIT;
+        } else {
+          displayRegisters.data.digits[1] =
+              font->glyphData[(uint8_t)buffer[buffer_start + 1]];
+        }
+        displayRegisters.data.digits[2] =
+            font->glyphData[(uint8_t)buffer[buffer_start + 2]];
+        displayRegisters.data.digits[3] =
+            font->glyphData[(uint8_t)buffer[buffer_start + 3]];
+
+        iicBridge.upload(&displayRegisters, iicPort);
+      }
+      vTaskDelay(SLEEP_TIME);
+    }
+  }
+
+  // external updaters
+  void scheduleContent(char *source) {
+    bool endOfSource = false;
+    for (uint8_t i = 0; i < 4; i++) {
+      char val = source[i];
+      if (val == 0)
+        endOfSource = true;
+      bufferChange[i] = endOfSource ? FILL_CHAR : val;
+    }
+    changeToApply = true;
+  }
+
+  /**
+   * @brief the next content change will also change to this mode.
+   *
+   * @param mode of display.
+   */
+  void scheduleModeChange(DisplayMode mode) { modeToApply = mode; }
+
+  /**
+   * @brief The updater cannot queue the changes, so it is usually best to try
+   * again later.
+   *
+   * @return true when there is a change that has not be applied yet.
+   */
+  bool isBusy() { return ttl > 0 || changeToApply || !iicReady; }
+  DisplayMode getMode() { return mode; }
+
+  // ----- setup iic
+  void setupIic(uint8_t iicPort, const i2c_config_t *conf) {
+    this->iicPort = iicPort;
+    i2c_port_t port = static_cast<i2c_port_t>(this->iicPort);
+    i2c_param_config(port, conf);
+
+    ESP_ERROR_CHECK(i2c_set_data_mode((i2c_port_t)port, I2C_DATA_MODE_LSB_FIRST,
+                                      I2C_DATA_MODE_LSB_FIRST));
+
+    ESP_ERROR_CHECK(i2c_driver_install(port, conf->mode, 0, 0, 0));
+
+    displayRegisters.control.switchedOn = true;
+    displayRegisters.control.brightness = 7;
+    displayRegisters.data.size = 4;
+
+    this->iicReady = true;
+  }
+};
+
+//====================================================================
+// --- the clock main loop
+class TheClockTask : public Task {
+private:
+  DisplayUpdaterTask *display = nullptr;
+
+  // Manage display of greetings
+  uint8_t greetingsPosition = 0;
+  uint8_t GREETINGS_POSITION_MAX = (uint8_t)strlen(GREETINGS_STRING) - 4;
+
+public:
+  virtual ~TheClockTask() {}
+  bool hasDisplay() { return nullptr != display; }
+  TheClockTask *withDisplay(DisplayUpdaterTask *display) {
+    this->display = display;
+    return this;
+  }
+  void run(void *data) {
+    const TickType_t SLEEP_TIME = 100 / portTICK_PERIOD_MS; // 10 Hz
+
+    while (true) {
+      if (hasDisplay()) {
+        // processing requiring the display
+        if (!display->isBusy()) {
+          // processing requiring an IDLE display (no pending update)
+          switch (display->getMode()) {
+          case GREETINGS:
+            greetingsPosition =
+                (greetingsPosition + 1) % GREETINGS_POSITION_MAX;
+            display->scheduleContent(GREETINGS_STRING + greetingsPosition);
+            break;
+          case TIME:
+            ESP_LOGI(TAG, "TheClockTask: update time -- or not");
+            break;
+          case CHANGE_HOUR:
+            ESP_LOGI(TAG, "TheClockTask: change hour -- or not");
+            break;
+          case CHANGE_MINUTES:
+            ESP_LOGI(TAG, "TheClockTask: change minutes -- or not");
+            break;
+          case MENU:
+            ESP_LOGI(TAG, "TheClockTask: menu -- or not");
+            break;
+          default:
+            ESP_LOGE(TAG, "TheClockTask: UNKNOWN MODE");
+          }
+        }
+      }
+
+      vTaskDelay(SLEEP_TIME); // do nothing while no display
+    }
+  }
+};
+
+//====================================================================
 // Sample task : led updater
 class LedUpdaterTask : public Task {
 private:
@@ -70,6 +354,7 @@ private:
   FeedbackLed *led;
 
 public:
+  virtual ~LedUpdaterTask() {}
   LedUpdaterTask *withGpio(GeneralPurposeInputOutput *gpio) {
     this->gpio = gpio;
     return this;
@@ -95,6 +380,7 @@ private:
   FeedbackLed *led;
 
 public:
+  virtual ~ButtonWatcherTask() {}
   ButtonWatcherTask *withGpio(GeneralPurposeInputOutput *gpio) {
     this->gpio = gpio;
     return this;
@@ -137,9 +423,11 @@ public:
 GeneralPurposeInputOutput *gpio;
 Task *ledUpdater;
 Task *buttonWatcher;
-Task *displayUpdater;
 InputButton *button;
 FeedbackLed *mainLed;
+DisplayUpdaterTask *displayUpdater;
+TheClockTask *theClock;
+
 // -- wifi
 WifiStationEsp32 *wifiStation;
 LoggerHostConfigurationEventListener *listener;
@@ -172,16 +460,45 @@ void app_main(void) {
   button->withDebouncer(DEBOUNCER_TYPICAL);
 
   // Tasks
+  // -- LED
   ledUpdater = (new LedUpdaterTask()) //
                    ->withGpio(gpio)   //
                    ->withLed(mainLed);
   ledUpdater->start();
 
+  // -- Buttons
   buttonWatcher = (new ButtonWatcherTask()) //
                       ->withGpio(gpio)      //
                       ->withLed(mainLed)    //
                       ->withButton(button);
   buttonWatcher->start();
+
+  // -- Seven segment display
+  displayUpdater = new DisplayUpdaterTask();
+
+  // -- -- i2c #1
+  int i2c_master_port = 0;
+  i2c_config_t conf = {
+      .mode = I2C_MODE_MASTER,
+      .sda_io_num =
+          CONFIG_PIN_IIC_1_SDA, // select SDA GPIO specific to your project
+      .scl_io_num =
+          CONFIG_PIN_IIC_1_SCL, // select SCL GPIO specific to your project
+      .sda_pullup_en = GPIO_PULLUP_DISABLE,
+      .scl_pullup_en = GPIO_PULLUP_DISABLE,
+      .master = {.clk_speed =
+                     CONFIG_IIC_1_CLK_FREQ_HZ}, // select frequency specific to
+                                                // your project
+      .clk_flags = 0, // optional; you can use I2C_SCLK_SRC_FLAG_* flags to
+                      // choose i2c source clock here
+  };
+
+  displayUpdater->setupIic(i2c_master_port, &conf);
+  displayUpdater->start();
+
+  // -- The clock
+  theClock = (new TheClockTask())->withDisplay(displayUpdater);
+  theClock->start();
 
   // -- wifi
   listener = new LoggerHostConfigurationEventListener();
