@@ -340,15 +340,15 @@ public:
             display->scheduleContent(GREETINGS_STRING + greetingsPosition);
             break;
           case TIME:
+          case CHANGE_HOUR:
+          case CHANGE_MINUTES:
             if (0 == phaseTime) {
               display->scheduleContent(timeBuffer);
               phaseTime = PHASE_TIME_MAX;
             }
             break;
-          case CHANGE_HOUR:
             ESP_LOGI(TAG, "TheClockTask: change hour -- or not");
             break;
-          case CHANGE_MINUTES:
             ESP_LOGI(TAG, "TheClockTask: change minutes -- or not");
             break;
           case MENU:
@@ -365,6 +365,58 @@ public:
       }
 
       vTaskDelay(SLEEP_TIME); // do nothing while no display
+    }
+  }
+
+  void switchToMenu() {
+    if (hasDisplay() && display->getMode() == TIME) {
+      display->scheduleModeChange(CHANGE_HOUR);
+    }
+  }
+
+  void onMenuButton() {
+    if (hasDisplay()) {
+      if (display->getMode() == CHANGE_HOUR) {
+        display->scheduleModeChange(CHANGE_MINUTES);
+      } else if (display->getMode() == CHANGE_MINUTES) {
+        display->scheduleModeChange(TIME);
+      }
+    }
+  }
+
+  void onUpButton() {
+    if (display->getMode() == CHANGE_HOUR) {
+      // current hour + 1
+      time(&now);
+      now += 3600;
+      localtime_r(&now, &timeinfo);
+      timeval newNow = {.tv_sec = now, .tv_usec = 0};
+      settimeofday(&newNow, nullptr);
+    } else if (display->getMode() == CHANGE_MINUTES) {
+      // current minute + 1
+      time(&now);
+      now += 60;
+      localtime_r(&now, &timeinfo);
+      timeval newNow = {.tv_sec = now, .tv_usec = 0};
+      settimeofday(&newNow, nullptr);
+    }
+  }
+  
+  void onDownButton() {
+    if (display->getMode() == CHANGE_HOUR) {
+      // current hour - 1
+      time(&now);
+      now -= 3600;
+      localtime_r(&now, &timeinfo);
+      timeval newNow = {.tv_sec = now, .tv_usec = 0};
+      settimeofday(&newNow, nullptr);
+    } else if (display->getMode() == CHANGE_MINUTES) {
+      // current minute - 1
+      time(&now);
+      now -= 60;
+      localtime_r(&now, &timeinfo);
+      timeval newNow = {.tv_sec = now, .tv_usec = 0};
+      settimeofday(&newNow, nullptr);
     }
   }
 };
@@ -396,14 +448,41 @@ public:
 };
 
 // Sample task : button watcher
+// TODO : define events to be listened by theClock. Or better, transfer that
+// into theClock.
 class ButtonWatcherTask : public Task, public InputButtonListener {
 private:
   GeneralPurposeInputOutput *gpio;
   InputButton *button;
   FeedbackLed *led;
+  TheClockTask *theClock;
+
+  bool menuButtonIsPushed = false;
+  uint8_t switchToMenuCounter = 0;
+  const uint8_t SWITCH_TO_MENU_TRESHOLD =
+      100; // maintain pushed at least 2 seconds.
+
+  bool upButtonIsPushed = false;
+  uint8_t upButtonCounter = 0;
+  const uint8_t UP_BUTTON_TRESHOLD =
+      25; // maintain pushed at least 1/2 seconds.
+
+  bool downButtonIsPushed = false;
+  uint8_t downButtonCounter = 0;
+  const uint8_t DOWN_BUTTON_TRESHOLD =
+      25; // maintain pushed at least 1/2 seconds.
+
+  bool disableNotifyMenu = false;
+  bool notifyMenu = false;
+  bool notifyUp = false;
+  bool notifyDown = false;
 
 public:
   virtual ~ButtonWatcherTask() {}
+  ButtonWatcherTask *withTheClock(TheClockTask *theClock) {
+    this->theClock = theClock;
+    return this;
+  }
   ButtonWatcherTask *withGpio(GeneralPurposeInputOutput *gpio) {
     this->gpio = gpio;
     return this;
@@ -421,9 +500,41 @@ public:
     const TickType_t SLEEP_TIME = 20 / portTICK_PERIOD_MS; // 50 Hz
     while (true) {
       button->update(gpio->getDigital()->read(CONFIG_PIN_BUTTON_MENU));
+      if (menuButtonIsPushed) {
+        if (switchToMenuCounter < SWITCH_TO_MENU_TRESHOLD) {
+          ++switchToMenuCounter;
+        } else {
+          if (nullptr != theClock) {
+            theClock->switchToMenu();
+            disableNotifyMenu = true;
+          }
+          switchToMenuCounter = 0;
+        }
+      }
+      if (upButtonIsPushed) {
+        if (upButtonCounter < UP_BUTTON_TRESHOLD) {
+          ++upButtonCounter;
+        } else {
+          if (nullptr != theClock) {
+            theClock->onUpButton();
+          }
+          upButtonCounter = 0;
+        }
+      }
+      if (downButtonIsPushed) {
+        if (downButtonCounter < DOWN_BUTTON_TRESHOLD) {
+          ++downButtonCounter;
+        } else {
+          if (nullptr != theClock) {
+            theClock->onDownButton();
+          }
+          downButtonCounter = 0;
+        }
+      }
       vTaskDelay(SLEEP_TIME);
     }
   }
+
   void onInputButtonEvent(InputButtonEvent *event) {
     if (!isStarted())
       return; // no connection
@@ -432,8 +543,38 @@ public:
       case CONFIG_PIN_BUTTON_MENU:
         if (event->source->isHigh()) {
           led->setFeedbackSequenceAndLoop(BLINK_THRICE);
+          menuButtonIsPushed = true;
         } else {
           led->setFeedbackSequenceAndLoop(BLINK_ONCE);
+          menuButtonIsPushed = false;
+          switchToMenuCounter = 0;
+          if (nullptr != theClock && !disableNotifyMenu) {
+            theClock->onMenuButton();
+          } else {
+            disableNotifyMenu = false;
+          }
+        }
+        break;
+      case CONFIG_PIN_BUTTON_UP:
+        if (!event->source->isHigh()) {
+          upButtonIsPushed = true;
+        } else {
+          menuButtonIsPushed = false;
+          upButtonCounter = 0;
+          if (nullptr != theClock) {
+            theClock->onUpButton();
+          }
+        }
+        break;
+      case CONFIG_PIN_BUTTON_DOWN:
+        if (!event->source->isHigh()) {
+          downButtonIsPushed = true;
+        } else {
+          downButtonIsPushed = false;
+          downButtonCounter = 0;
+          if (nullptr != theClock) {
+            theClock->onDownButton();
+          }
         }
         break;
       }
@@ -483,6 +624,8 @@ void app_main(void) {
   button->withDebouncer(DEBOUNCER_TYPICAL);
 
   // Tasks
+  displayUpdater = new DisplayUpdaterTask();
+  theClock = (new TheClockTask())->withDisplay(displayUpdater);
   // -- LED
   ledUpdater = (new LedUpdaterTask()) //
                    ->withGpio(gpio)   //
@@ -493,11 +636,11 @@ void app_main(void) {
   buttonWatcher = (new ButtonWatcherTask()) //
                       ->withGpio(gpio)      //
                       ->withLed(mainLed)    //
-                      ->withButton(button);
+                      ->withButton(button)//
+                      ->withTheClock(theClock);
   buttonWatcher->start();
 
   // -- Seven segment display
-  displayUpdater = new DisplayUpdaterTask();
 
   // -- -- i2c #1
   int i2c_master_port = 0;
@@ -520,7 +663,6 @@ void app_main(void) {
   displayUpdater->start();
 
   // -- The clock
-  theClock = (new TheClockTask())->withDisplay(displayUpdater);
   theClock->start();
 
   // -- wifi
