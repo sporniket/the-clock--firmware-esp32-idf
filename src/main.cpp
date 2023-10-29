@@ -301,9 +301,20 @@ private:
   // Manage display of greetings
   uint8_t greetingsPosition = 0;
   uint8_t GREETINGS_POSITION_MAX = (uint8_t)strlen(GREETINGS_STRING) - 4;
+  uint8_t phaseTime = 0;
+  uint8_t PHASE_TIME_MAX =
+      5; // wait at least a half seconds before updating time again.
+
+  char timeBuffer[5]; // 4 digits + string terminator
+  time_t now = 0;
+  struct tm timeinfo = {0};
 
 public:
-  virtual ~TheClockTask() {}
+  virtual ~TheClockTask() {
+    setenv("TZ", "CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00",
+           1); // TODO make it configurable
+    tzset();
+  }
   bool hasDisplay() { return nullptr != display; }
   TheClockTask *withDisplay(DisplayUpdaterTask *display) {
     this->display = display;
@@ -313,6 +324,11 @@ public:
     const TickType_t SLEEP_TIME = 100 / portTICK_PERIOD_MS; // 10 Hz
 
     while (true) {
+      if (0 == phaseTime) {
+        time(&now);
+        localtime_r(&now, &timeinfo);
+        strftime(timeBuffer, sizeof(timeBuffer), "%H%M", &timeinfo);
+      }
       if (hasDisplay()) {
         // processing requiring the display
         if (!display->isBusy()) {
@@ -324,7 +340,10 @@ public:
             display->scheduleContent(GREETINGS_STRING + greetingsPosition);
             break;
           case TIME:
-            ESP_LOGI(TAG, "TheClockTask: update time -- or not");
+            if (0 == phaseTime) {
+              display->scheduleContent(timeBuffer);
+              phaseTime = PHASE_TIME_MAX;
+            }
             break;
           case CHANGE_HOUR:
             ESP_LOGI(TAG, "TheClockTask: change hour -- or not");
@@ -339,6 +358,10 @@ public:
             ESP_LOGE(TAG, "TheClockTask: UNKNOWN MODE");
           }
         }
+      }
+      if (0 == greetingsPosition) {
+        display->scheduleModeChange(TIME);
+        phaseTime = 0; // force display of time next cycle
       }
 
       vTaskDelay(SLEEP_TIME); // do nothing while no display
