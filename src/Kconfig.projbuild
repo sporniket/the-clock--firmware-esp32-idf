@@ -23,6 +23,12 @@ menu "The Clock by Sporniket"
 		help
 			Use this label when you want to show an unlocalized title.
 
+	config SNTP_TIME_SERVER
+		string "SNTP server name"
+		default "pool.ntp.org"
+		help
+			Hostname of the main SNTP server.
+
 	rsource "Kconfig-control-panel-mapping.projbuild"
 
 	rsource "Kconfig-iic-controller-1.projbuild"
