@@ -23,6 +23,14 @@ menu "Control panel mapping"
 		default 22
 		help
 			GPIO number (IOxx) for the 'Main status' LED.
+	
+	config PIN_STATUS_MAIN_INVERTED
+		int "Invert the command to the main status LED"
+		range 0 1
+		default 0
+		help
+			0 for boards that light the LED when the GPIO is high.
+			1 for boards that light the LED when the GPIO is low.
 
 	config PIN_BUTTON_MENU
 		int "BUTTON 'MENU' GPIO number"

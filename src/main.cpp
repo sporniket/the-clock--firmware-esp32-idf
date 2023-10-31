@@ -299,8 +299,44 @@ public:
 };
 
 //====================================================================
+// --- the clock command interface
+/**
+ * @brief The interface implemented by the clock, relative to buttons message.
+ *
+ * @note For each button, the clock will acknowledge two types of messages :
+ * @note - A normal click, that happens when a buttons is transitioning from
+ * high to low ;
+ * @note - A long click, when the button is maintained push for a long enough
+ * time
+ * @note ---
+ * @note For menu and back buttons, the long click will happen only once, until
+ * the button is released.
+ * @note ---
+ * @note For up and down buttons, the long click will happen regularly, until
+ * the button is released.
+ *
+ */
+class TheClockCommandListener {
+public:
+  virtual void onMenuClick() = 0;
+
+  virtual void onMenuLongClick() = 0;
+
+  virtual void onBackClick() = 0;
+
+  virtual void onBackLongClick() = 0;
+
+  virtual void onUpClick() = 0;
+
+  virtual void onUpLongClick() = 0;
+
+  virtual void onDownClick() = 0;
+
+  virtual void onDownLongClick() = 0;
+};
+
 // --- the clock main loop
-class TheClockTask : public Task {
+class TheClockTask : public Task, public TheClockCommandListener {
 private:
   DisplayUpdaterTask *display = nullptr;
 
@@ -385,6 +421,31 @@ public:
       vTaskDelay(SLEEP_TIME); // do nothing while no display
     }
   }
+
+  // === TheClockCommandListener
+  virtual void onMenuClick() { ESP_LOGI(TAG, "TheClockTask: on menu click"); }
+
+  virtual void onMenuLongClick() {
+    ESP_LOGI(TAG, "TheClockTask: on menu LONG click");
+  }
+
+  virtual void onBackClick() { ESP_LOGI(TAG, "TheClockTask: on back click"); }
+
+  virtual void onBackLongClick() {
+    ESP_LOGI(TAG, "TheClockTask: on back LONG click");
+  }
+
+  virtual void onUpClick() { ESP_LOGI(TAG, "TheClockTask: on up click"); }
+
+  virtual void onUpLongClick() {
+    ESP_LOGI(TAG, "TheClockTask: on up LONG click");
+  }
+
+  virtual void onDownClick() { ESP_LOGI(TAG, "TheClockTask: on down click"); }
+
+  virtual void onDownLongClick() {
+    ESP_LOGI(TAG, "TheClockTask: on down LONG click");
+  }
 };
 
 //====================================================================
@@ -407,7 +468,10 @@ public:
   void run(void *data) {
     const TickType_t SLEEP_TIME = 100 / portTICK_PERIOD_MS; // 10 Hz
     while (true) {
-      gpio->getDigital()->write(CONFIG_PIN_STATUS_MAIN, led->next());
+      bool nextValue = led->next();
+      gpio->getDigital()->write(CONFIG_PIN_STATUS_MAIN,
+                                CONFIG_PIN_STATUS_MAIN_INVERTED ? !nextValue
+                                                                : nextValue);
       vTaskDelay(SLEEP_TIME);
     }
   }
@@ -417,8 +481,22 @@ public:
 class ButtonWatcherTask : public Task, public InputButtonListener {
 private:
   GeneralPurposeInputOutput *gpio;
-  InputButton *button;
-  FeedbackLed *led;
+  InputButton *buttonMenu;
+  InputButton *buttonBack;
+  InputButton *buttonUp;
+  InputButton *buttonDown;
+  FeedbackLed *led; // TODO move to TheClock
+  TheClockCommandListener *theClock;
+
+  // long clicks managements
+  uint8_t counterMenu = 0;
+  uint8_t counterBack = 0;
+  uint8_t counterUp = 0;
+  uint8_t counterDown = 0;
+  const uint8_t LONG_CLICK_MENU = 100; // 2 seconds
+  const uint8_t LONG_CLICK_BACK = 100; // 2 seconds
+  const uint8_t LONG_CLICK_UP = 25;    // 0.5 seconds
+  const uint8_t LONG_CLICK_DOWN = 25;  // 0.5s seconds
 
 public:
   virtual ~ButtonWatcherTask() {}
@@ -426,19 +504,76 @@ public:
     this->gpio = gpio;
     return this;
   }
-  ButtonWatcherTask *withButton(InputButton *button) {
-    this->button = button;
-    button->withListener(this); // so that onInputButtonEvent(...) is called.
+  ButtonWatcherTask *withButtonMenu(InputButton *button) {
+    this->buttonMenu = button;
+    button->withListener(this);
+    return this;
+  }
+  ButtonWatcherTask *withButtonBack(InputButton *button) {
+    this->buttonBack = button;
+    button->withListener(this);
+    return this;
+  }
+  ButtonWatcherTask *withButtonUp(InputButton *button) {
+    this->buttonUp = button;
+    button->withListener(this);
+    return this;
+  }
+  ButtonWatcherTask *withButtonDown(InputButton *button) {
+    this->buttonDown = button;
+    button->withListener(this);
     return this;
   }
   ButtonWatcherTask *withLed(FeedbackLed *led) {
     this->led = led;
     return this;
   }
+  ButtonWatcherTask *withTheClock(TheClockCommandListener *theClock) {
+    this->theClock = theClock;
+    return this;
+  }
   void run(void *data) {
     const TickType_t SLEEP_TIME = 20 / portTICK_PERIOD_MS; // 50 Hz
     while (true) {
-      button->update(gpio->getDigital()->read(CONFIG_PIN_BUTTON_MENU));
+      // update state
+      buttonMenu->update(gpio->getDigital()->read(buttonMenu->getId()));
+      buttonBack->update(gpio->getDigital()->read(buttonBack->getId()));
+      buttonUp->update(gpio->getDigital()->read(buttonUp->getId()));
+      buttonDown->update(gpio->getDigital()->read(buttonDown->getId()));
+
+      // manage long clicks
+      if (!buttonMenu->isHigh()) {
+        if (LONG_CLICK_MENU >= counterMenu) {
+          ++counterMenu;
+          if (LONG_CLICK_MENU == counterMenu) {
+            theClock->onMenuLongClick();
+            // only once until release
+          }
+        }
+      }
+      if (!buttonBack->isHigh()) {
+        if (LONG_CLICK_BACK >= counterBack) {
+          ++counterBack;
+          if (LONG_CLICK_BACK == counterBack) {
+            theClock->onBackLongClick();
+            // only once until release
+          }
+        }
+      }
+      if (!buttonUp->isHigh()) {
+        ++counterUp;
+        if (LONG_CLICK_UP == counterUp) {
+          theClock->onUpLongClick();
+          counterUp = 0; // repeat
+        }
+      }
+      if (!buttonDown->isHigh()) {
+        ++counterDown;
+        if (LONG_CLICK_DOWN == counterDown) {
+          theClock->onDownLongClick();
+          counterDown = 0; // repeat
+        }
+      }
       vTaskDelay(SLEEP_TIME);
     }
   }
@@ -448,10 +583,31 @@ public:
     if (STATE_CHANGE == event->type) {
       switch (event->source->getId()) {
       case CONFIG_PIN_BUTTON_MENU:
-        if (event->source->isHigh()) {
-          led->setFeedbackSequenceAndLoop(BLINK_THRICE);
+        if (!event->source->isHigh()) {
+          theClock->onMenuClick();
         } else {
-          led->setFeedbackSequenceAndLoop(BLINK_ONCE);
+          counterMenu = 0;
+        }
+        break;
+      case CONFIG_PIN_BUTTON_BACK:
+        if (!event->source->isHigh()) {
+          theClock->onBackClick();
+        } else {
+          counterBack = 0;
+        }
+        break;
+      case CONFIG_PIN_BUTTON_UP:
+        if (!event->source->isHigh()) {
+          theClock->onUpClick();
+        } else {
+          counterUp = 0;
+        }
+        break;
+      case CONFIG_PIN_BUTTON_DOWN:
+        if (!event->source->isHigh()) {
+          theClock->onDownClick();
+        } else {
+          counterDown = 0;
         }
         break;
       }
@@ -463,7 +619,7 @@ public:
 // -- tasks and gpios
 GeneralPurposeInputOutput *gpio;
 Task *ledUpdater;
-Task *buttonWatcher;
+ButtonWatcherTask *buttonWatcher;
 InputButton *button;
 FeedbackLed *mainLed;
 DisplayUpdaterTask *displayUpdater;
@@ -473,6 +629,12 @@ TheClockTask *theClock;
 WifiStationEsp32 *wifiStation;
 LoggerHostConfigurationEventListener *listener;
 NetworkTimeKeeperEsp32 *networkTimeKeeper;
+
+// TODO : support configurable button inversion !
+InputButton *createButton(uint64_t gpioId) {
+  return (new InputButton(gpioId)) //
+      ->withDebouncer(DEBOUNCER_TYPICAL);
+}
 
 void app_main(void) {
   // setup
@@ -497,10 +659,6 @@ void app_main(void) {
   mainLed = new FeedbackLed();
   mainLed->setFeedbackSequenceAndLoop(BLINK_ONCE);
 
-  // -- action button
-  button = new InputButton(CONFIG_PIN_BUTTON_MENU);
-  button->withDebouncer(DEBOUNCER_TYPICAL);
-
   // Tasks
   // -- LED
   ledUpdater = (new LedUpdaterTask()) //
@@ -509,10 +667,14 @@ void app_main(void) {
   ledUpdater->start();
 
   // -- Buttons
-  buttonWatcher = (new ButtonWatcherTask()) //
-                      ->withGpio(gpio)      //
-                      ->withLed(mainLed)    //
-                      ->withButton(button);
+  buttonWatcher = (new ButtonWatcherTask())                                  //
+                      ->withGpio(gpio)                                       //
+                      ->withLed(mainLed)                                     //
+                      ->withButtonMenu(createButton(CONFIG_PIN_BUTTON_MENU)) //
+                      ->withButtonBack(createButton(CONFIG_PIN_BUTTON_BACK)) //
+                      ->withButtonUp(createButton(CONFIG_PIN_BUTTON_UP))     //
+                      ->withButtonDown(createButton(CONFIG_PIN_BUTTON_DOWN)) //
+      ;
   buttonWatcher->start();
 
   // -- Seven segment display
@@ -541,6 +703,7 @@ void app_main(void) {
   // -- The clock
   theClock = (new TheClockTask())->withDisplay(displayUpdater);
   theClock->start();
+  buttonWatcher->withTheClock(theClock);
 
   // -- wifi
   listener = new LoggerHostConfigurationEventListener();
