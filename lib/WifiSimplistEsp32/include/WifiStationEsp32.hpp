@@ -30,6 +30,7 @@
 // project includes
 #include "InternetSimplist.hpp"
 #include "WifiSimplist.hpp"
+#include "WifiSimplistEsp32Types.hpp"
 
 /** @brief Model of a Wifi Station on Esp32 platform.
  *
@@ -54,7 +55,8 @@
  * }
  * ```
  */
-class WifiStationEsp32 {
+class WifiStationEsp32 : public WifiStationLifecycleManager,
+                         public WifiStationEsp32EventHandler {
 private:
   static constexpr char *TAG = (char *)"WifiStationEsp32";
   /**
@@ -124,12 +126,12 @@ private:
   /**
    * @brief Wifi initialization config
    */
-  wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+  wifi_init_config_t wifiStackConfiguration = WIFI_INIT_CONFIG_DEFAULT();
 
   /**
    * @brief Station network interface
    */
-  esp_netif_t *sta_netif ;
+  esp_netif_t *sta_netif;
 
   /**
    * @brief Wifi config to be used with known access points
@@ -140,7 +142,7 @@ private:
               .ssid = "",
               .password = "",
               .threshold = {.authmode = WIFI_AUTH_WPA2_PSK},
-              .sae_pwe_h2e = WPA3_SAE_PWE_UNSPECIFIED,
+              //.sae_pwe_h2e = WPA3_SAE_PWE_UNSPECIFIED,
           },
   };
 
@@ -287,6 +289,7 @@ public:
     return this;
   }
 
+  // ========[ API ]========
   /**
    * @brief Returns whether it is ok to proceed with install.
    *
@@ -330,6 +333,12 @@ public:
            DONE_TRYING_KNOWN_ACCESS_POINTS == state || TRYING_WPS == state;
   }
 
+  /**
+   * @brief Erase the credential registry, so that next reboot requires WPS
+   * again.
+   */
+  void forgetKnownAccessPoints();
+
   // ========[ Wifi events handlers ]========
   /**
    * @brief Event handler for WIFI_EVENT_STA_START.
@@ -340,6 +349,16 @@ public:
    * @param event_data the provided instance of WifiStationEsp32.
    */
   void handleWifiEventStationStart(void *event_data);
+
+  /**
+   * @brief Event handler for WIFI_EVENT_STA_CONNECTED.
+   *
+   * @param arg see Esp32 documentation.
+   * @param event_base see Esp32 documentation.
+   * @param event_id see Esp32 documentation.
+   * @param event_data the provided instance of WifiStationEsp32.
+   */
+  void handleWifiEventStationConnected(void *event_data);
 
   /**
    * @brief Event handler for WIFI_EVENT_STA_DISCONNECTED.

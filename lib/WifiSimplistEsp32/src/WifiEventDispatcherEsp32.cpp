@@ -10,7 +10,7 @@ static constexpr char *TAG = (char *)"WifiEventDispatcherEsp32";
 /**
  * @brief The listeners that will receive the events.
  */
-static std::vector<WifiStationEsp32 *> listeners;
+static std::vector<WifiStationEsp32EventHandler *> listeners;
 
 // ========[ Code generator macros ]========
 // generate the handler that will loop through each listener to dispatch the
@@ -18,10 +18,12 @@ static std::vector<WifiStationEsp32 *> listeners;
 #define DISPATCH(event, event_name, handler_name)                              \
   case event:                                                                  \
     ESP_LOGI(TAG, event_name);                                                 \
-    for (std::vector<WifiStationEsp32 *>::iterator it = listeners.begin();     \
+    for (std::vector<WifiStationEsp32EventHandler *>::iterator it =            \
+             listeners.begin();                                                \
          it != listeners.end(); it++) {                                        \
       (*it)->handler_name(event_data);                                         \
     }                                                                          \
+    ESP_LOGI(TAG, "DONE dispatch");                                            \
     break;
 
 // ========[ Event dispatcher ]========
@@ -31,6 +33,8 @@ static void dispatchEvents(void *arg, esp_event_base_t event_base,
     switch (event_id) {
       DISPATCH(WIFI_EVENT_STA_START, "WIFI_EVENT_STA_START",
                handleWifiEventStationStart)
+      DISPATCH(WIFI_EVENT_STA_CONNECTED, "WIFI_EVENT_STA_CONNECTED",
+               handleWifiEventStationConnected)
       DISPATCH(WIFI_EVENT_STA_DISCONNECTED, "WIFI_EVENT_STA_DISCONNECTED",
                handleWifiEventStationDisconnected)
       DISPATCH(WIFI_EVENT_STA_WPS_ER_SUCCESS, "WIFI_EVENT_STA_WPS_ER_SUCCESS",
@@ -79,11 +83,13 @@ void WifiEventDispatcherEsp32::installHandlers() {
                                  (esp_event_handler_t)&dispatchEvents, NULL));
 }
 
-void WifiEventDispatcherEsp32::addListener(WifiStationEsp32 *listener) {
+void WifiEventDispatcherEsp32::addListener(
+    WifiStationEsp32EventHandler *listener) {
   if (nullptr == listener) {
     return;
   }
-  for (std::vector<WifiStationEsp32 *>::iterator it = listeners.begin();
+  for (std::vector<WifiStationEsp32EventHandler *>::iterator it =
+           listeners.begin();
        it != listeners.end(); it++) {
     if (listener == *it) {
       return; // already registered.

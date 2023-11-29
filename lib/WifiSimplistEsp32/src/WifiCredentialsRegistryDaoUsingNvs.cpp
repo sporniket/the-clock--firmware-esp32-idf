@@ -72,7 +72,7 @@ bool WifiCredentialsRegistryDaoUsingNvs::loadInto(
   char itemKey[MAX_LENGTH_OF_KEYPASS];
   WifiKeyType keyType;
   WifiCredentialsRegistry temp(recipient->getCapacity());
-  for (uint8_t item = count - 1; item >= 0; item--) {
+  for (uint8_t item = count - 1; item < count; item--) {
     // read items in reverse order
 
     // init storage before reading
@@ -84,7 +84,7 @@ bool WifiCredentialsRegistryDaoUsingNvs::loadInto(
     sprintf(keyname, FMT_KEY_SSID, item);
     err = handle->get_string(keyname, itemSsid, MAX_LENGTH_OF_SSID);
     if (err != ESP_OK) {
-      logErrorGetItem(TAG_SAVE, err, keyname);
+      logErrorGetItem(TAG_LOAD, err, keyname);
       return false;
     }
 
@@ -120,15 +120,17 @@ bool WifiCredentialsRegistryDaoUsingNvs::saveFrom(
   std::unique_ptr<nvs::NVSHandle> handle =
       nvs::open_nvs_handle(getDesignator()->c_str(), NVS_READWRITE, &err);
   if (err != ESP_OK) {
-    ESP_LOGE(TAG_LOAD, "Error (%s) opening NVS handle!", esp_err_to_name(err));
+    ESP_LOGE(TAG_SAVE, "Error (%s) opening NVS handle!", esp_err_to_name(err));
     return false;
   }
   char keyname[16];
   source->rewind();
+  uint8_t itemIndex = 0 ;
   while (source->hasNext()) {
     WifiCredentials *item = source->next();
     // write ssid
-    sprintf(keyname, FMT_KEY_SSID, item);
+    sprintf(keyname, FMT_KEY_SSID, itemIndex);
+    ESP_LOGI(TAG_SAVE, "Writing key %s...",keyname);
     err = handle->set_string(keyname, (char *)(item->getSsid()));
     if (err != ESP_OK) {
       logErrorSetItem(TAG_SAVE, err, keyname);
@@ -141,7 +143,8 @@ bool WifiCredentialsRegistryDaoUsingNvs::saveFrom(
     }
 
     // write key
-    sprintf(keyname, FMT_KEY_KEYPASS, item);
+    sprintf(keyname, FMT_KEY_KEYPASS, itemIndex);
+    ESP_LOGI(TAG_SAVE, "Writing key %s...",keyname);
     err = handle->set_string(keyname, (char *)(item->getKey()));
     if (err != ESP_OK) {
       logErrorSetItem(TAG_SAVE, err, keyname);
@@ -149,7 +152,8 @@ bool WifiCredentialsRegistryDaoUsingNvs::saveFrom(
     }
 
     // write keytype
-    sprintf(keyname, FMT_KEY_KEYTYPE, item);
+    sprintf(keyname, FMT_KEY_KEYTYPE, itemIndex);
+    ESP_LOGI(TAG_SAVE, "Writing key %s...",keyname);
     err = handle->set_item(keyname, item->getKeyType());
     if (err != ESP_OK) {
       logErrorSetItem(TAG_SAVE, err, keyname);
@@ -160,10 +164,14 @@ bool WifiCredentialsRegistryDaoUsingNvs::saveFrom(
       logErrorCommit(TAG_SAVE, err, keyname);
       return false;
     }
+    ++itemIndex;
   }
   // at this point the whole registry has been written without problem
   // read the number of item to read
   sprintf(keyname, FMT_KEY_COUNT);
+  ESP_LOGI(TAG_SAVE, "Writing key %s...",keyname);
+  ESP_LOGI(TAG_SAVE, "Writing count %d...",source->getSize());
+  ESP_LOGI(TAG_SAVE, "Written indexes %d...",itemIndex);
   err = handle->set_item(keyname, source->getSize());
   if (err != ESP_OK) {
     logErrorSetItem(TAG_SAVE, err, keyname);

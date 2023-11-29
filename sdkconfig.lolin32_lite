@@ -942,7 +942,7 @@ CONFIG_ESP_WIFI_MBEDTLS_TLS_CLIENT=y
 # WPS Configuration Options
 #
 # CONFIG_ESP_WIFI_WPS_STRICT is not set
-# CONFIG_ESP_WIFI_WPS_PASSPHRASE is not set
+CONFIG_ESP_WIFI_WPS_PASSPHRASE=y
 # end of WPS Configuration Options
 
 # CONFIG_ESP_WIFI_DEBUG_PRINT is not set

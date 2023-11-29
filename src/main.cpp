@@ -44,6 +44,8 @@
 // -- timekeepers
 #include "NetworkTimeKeeperEsp32.hpp"
 
+#include "macros_property.hpp"
+
 extern "C" {
 void app_main(void);
 }
@@ -337,9 +339,9 @@ public:
 
 // --- the clock main loop
 class TheClockTask : public Task, public TheClockCommandListener {
+  PROPERTY(TheClockTask,DisplayUpdaterTask,Display)
+  PROPERTY(TheClockTask,WifiStationEsp32,WifiStation)
 private:
-  DisplayUpdaterTask *display = nullptr;
-
   // Manage display of greetings
   uint8_t greetingsPosition = 0;
   uint8_t GREETINGS_POSITION_MAX = (uint8_t)strlen(GREETINGS_STRING) - 4;
@@ -365,11 +367,7 @@ public:
            1); // TODO make it configurable
     tzset();
   }
-  bool hasDisplay() { return nullptr != display; }
-  TheClockTask *withDisplay(DisplayUpdaterTask *display) {
-    this->display = display;
-    return this;
-  }
+
   void run(void *data) {
     const TickType_t SLEEP_TIME = 100 / portTICK_PERIOD_MS; // 10 Hz
 
@@ -383,19 +381,19 @@ public:
       }
       if (hasDisplay()) {
         // processing requiring the display
-        display->setNightTime(timeinfo.tm_hour < 8 || timeinfo.tm_hour >= 20);
+        myDisplay->setNightTime(timeinfo.tm_hour < 8 || timeinfo.tm_hour >= 20);
 
-        if (!display->isBusy()) {
+        if (!myDisplay->isBusy()) {
           // processing requiring an IDLE display (no pending update)
-          switch (display->getMode()) {
+          switch (myDisplay->getMode()) {
           case GREETINGS:
             greetingsPosition =
                 (greetingsPosition + 1) % GREETINGS_POSITION_MAX;
-            display->scheduleContent(GREETINGS_STRING + greetingsPosition);
+            myDisplay->scheduleContent(GREETINGS_STRING + greetingsPosition);
             break;
           case TIME:
             if (0 == phaseTime) {
-              display->scheduleContent(timeBuffer);
+              myDisplay->scheduleContent(timeBuffer);
               phaseTime = PHASE_TIME_MAX;
             }
             break;
@@ -414,7 +412,7 @@ public:
         }
       }
       if (0 == greetingsPosition) {
-        display->scheduleModeChange(TIME);
+        myDisplay->scheduleModeChange(TIME);
         phaseTime = 0; // force display of time next cycle
       }
 
@@ -427,6 +425,9 @@ public:
 
   virtual void onMenuLongClick() {
     ESP_LOGI(TAG, "TheClockTask: on menu LONG click");
+    if(hasWifiStation()) {
+      myWifiStation->forgetKnownAccessPoints();
+    }
   }
 
   virtual void onBackClick() { ESP_LOGI(TAG, "TheClockTask: on back click"); }
@@ -710,5 +711,6 @@ void app_main(void) {
   networkTimeKeeper = new NetworkTimeKeeperEsp32(CONFIG_SNTP_TIME_SERVER);
   wifiStation = WifiHelperEsp32::setupAndRunStation(NAME_STORAGE_WIFI, listener,
                                                     networkTimeKeeper);
+  theClock->withWifiStation(wifiStation);
   // and voila
 }

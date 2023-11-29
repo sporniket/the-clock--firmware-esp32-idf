@@ -40,10 +40,10 @@ WifiHelperEsp32::setupAndRunStation(char *storageName,
           ->withHostConfigurationEventListener(listener3) //
           ->withHostConfigurationEventListener(listener4) //
       ;
+  WifiEventDispatcherEsp32::addListener(station);
   station->init();
   if (station->isReadyToInstall()) {
     station->install();
-    WifiEventDispatcherEsp32::addListener(station);
     station->tryToConnect();
   }
   return station;

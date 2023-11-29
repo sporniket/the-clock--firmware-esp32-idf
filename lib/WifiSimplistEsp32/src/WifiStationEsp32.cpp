@@ -22,109 +22,11 @@ WifiStationEsp32::~WifiStationEsp32() {}
 // write code here...
 
 // static
+// ================
 void WifiStationEsp32::install() {
   ESP_LOGI(TAG, "Installing wifi station event handlers is not done by "
                 "WifiStationEsp32...");
   changeStateToInstalled();
-}
-
-// ========[ state management ]========
-bool WifiStationEsp32::changeStateToConnected() {
-  if (CONNECTED == state) {
-    ESP_LOGD(TAG, "Already in a state 'connected'.");
-    return false;
-  }
-  if (TRYING_KNOWN_ACCESS_POINTS != state && TRYING_WPS != state) {
-    ESP_LOGW(TAG, "Not in a state that can be changed to 'connected'.");
-    return false;
-  }
-
-  // update registry of known APs and save it
-  if (TRYING_KNOWN_ACCESS_POINTS == state) {
-    WifiCredentials wc(wifi_config_known_ap.sta.ssid,
-                       wifi_config_known_ap.sta.password, PASSWORD);
-    wcreg.setPreferred(&wc);
-    wcregdao->saveFrom(&wcreg);
-  } else if (TRYING_WPS == state) {
-  }
-
-  ESP_LOGI(TAG, "Changing state to 'connected'.");
-  state = CONNECTED;
-  return true;
-}
-
-bool WifiStationEsp32::changeStateToNotConnectedAndIdle() {
-  if (NOT_CONNECTED_AND_IDLE == state) {
-    ESP_LOGD(TAG, "Already in a state 'not connected and idle'.");
-    return false;
-  }
-  if (READY_TO_INIT == state) {
-    ESP_LOGW(TAG, "Require to have been installed first.");
-    return false;
-  }
-
-  if (wcreg.getSize() == 0) {
-    ESP_ERROR_CHECK(esp_wifi_wps_disable());
-  } else {
-    // TODO ? disable wifi
-  }
-
-  ESP_LOGI(TAG, "Changing state to 'not connected and idle'.");
-  state = NOT_CONNECTED_AND_IDLE;
-  return true;
-}
-
-bool WifiStationEsp32::changeStateToTryingWps() {
-  if (TRYING_WPS == state) {
-    ESP_LOGD(TAG, "Already in a state 'trying wps'.");
-    return false;
-  }
-  if (INSTALLED != state && NOT_CONNECTED_AND_IDLE != state &&
-      DONE_TRYING_KNOWN_ACCESS_POINTS != state) {
-    ESP_LOGW(TAG, "Not in a state that can be changed to 'trying wps.");
-    return false;
-  }
-
-  ESP_LOGI(TAG, "Changing state to 'trying wps'.");
-  state = TRYING_WPS;
-  startWps();
-
-  return true;
-}
-
-bool WifiStationEsp32::changeStateToDoneTryingKnownAccessPoints() {
-  if (DONE_TRYING_KNOWN_ACCESS_POINTS == state) {
-    ESP_LOGD(TAG, "Already in a state 'done trying known access points'.");
-    return false;
-  }
-  if (TRYING_KNOWN_ACCESS_POINTS != state) {
-    ESP_LOGW(TAG, "Not in a state that can be changed to 'done trying known "
-                  "access points'.");
-    return false;
-  }
-
-  ESP_LOGI(TAG, "Changing state to 'done trying known access points'.");
-  state = DONE_TRYING_KNOWN_ACCESS_POINTS;
-  return true;
-}
-
-bool WifiStationEsp32::changeStateToTryingKnownAccessPoints() {
-  if (TRYING_KNOWN_ACCESS_POINTS == state) {
-    ESP_LOGD(TAG, "Already in a state 'trying known access points'.");
-    return false;
-  }
-  if (INSTALLED != state && NOT_CONNECTED_AND_IDLE != state) {
-    ESP_LOGW(TAG, "Not in a state that can be changed to 'trying known "
-                  "access points'.");
-    return false;
-  }
-
-  wcreg.rewind();
-  ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config_known_ap));
-
-  ESP_LOGI(TAG, "Changing state to 'trying known access points'.");
-  state = TRYING_KNOWN_ACCESS_POINTS;
-  return true;
 }
 
 bool WifiStationEsp32::changeStateToInstalled() {
@@ -142,56 +44,28 @@ bool WifiStationEsp32::changeStateToInstalled() {
   return true;
 }
 
-bool WifiStationEsp32::changeStateToReadyToInstall() {
-  if (READY_TO_INSTALL == state) {
-    ESP_LOGD(TAG, "Already in a state 'ready to install'.");
+// clang-format off
+// ========================[ state management called elsewhere ]========================
+// clang-format on
+
+// NOBODY CALLS ME :,(
+bool WifiStationEsp32::changeStateToDoneTryingKnownAccessPoints() {
+  if (DONE_TRYING_KNOWN_ACCESS_POINTS == state) {
+    ESP_LOGD(TAG, "Already in a state 'done trying known access points'.");
     return false;
   }
-  if (state != READY_TO_INIT) {
-    ESP_LOGW(TAG, "Not in a state that can be changed to 'ready to install'.");
+  if (TRYING_KNOWN_ACCESS_POINTS != state) {
+    ESP_LOGW(TAG, "Not in a state that can be changed to 'done trying known "
+                  "access points'.");
     return false;
   }
 
-  wcregdao->loadInto(&wcreg);
-
-  ESP_LOGI(TAG, "Changing state to 'ready to install'.");
-  state = READY_TO_INSTALL;
-  return true;
-}
-
-bool WifiStationEsp32::changeStateToReadyToInit() {
-  if (READY_TO_INIT == state) {
-    ESP_LOGD(TAG, "Already in a state 'ready to init'.");
-    return false;
-  }
-  if (state != CREATED) {
-    ESP_LOGW(TAG, "Not in a state that can be changed to 'ready to init'.");
-    return false;
-  }
-  if (nullptr == wcregdao) {
-    ESP_LOGW(TAG, "Cannot be ready to install until wcregdao is defined.");
-    return false;
-  }
-  if (hostConfigurationListeners.empty()) {
-    ESP_LOGW(TAG, "Cannot be ready to install until at least one host "
-                  "configuration listener is registered.");
-    return false;
-  }
-
-  ESP_LOGI(TAG, "Changing state to 'ready to init'.");
-  state = READY_TO_INIT;
+  ESP_LOGI(TAG, "Changing state to 'done trying known access points'.");
+  state = DONE_TRYING_KNOWN_ACCESS_POINTS;
   return true;
 }
 
 // ========[ --- ]========
-
-bool WifiStationEsp32::tryNextKnownAccessPoints() {
-  WifiCredentials *wc = wcreg.next();
-  ESP_LOGI(TAG, "Connecting to known SSID: %s", wc->getSsid());
-  setupCredentials(wifi_config_known_ap, wc->getSsid(), wc->getKey());
-  esp_wifi_connect();
-  return true;
-}
 
 bool WifiStationEsp32::tryNextWpsAccessPoint() {
   if (0 >= wpsCredentialsCount) {
@@ -233,6 +107,7 @@ void WifiStationEsp32::notifyLostHostConfiguration() {
   }
 }
 
+// ================
 void WifiStationEsp32::init() {
   if (!wcregdao->loadInto(&wcreg)) {
     ESP_LOGW(TAG,
@@ -250,12 +125,30 @@ void WifiStationEsp32::init() {
   assert(sta_netif);
   if (nullptr != sta_netif) {
     ESP_LOGI(TAG, "WILL Initialize wifi...");
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    ESP_ERROR_CHECK(esp_wifi_init(&wifiStackConfiguration));
     ESP_LOGI(TAG, "DONE Initialize wifi.");
     changeStateToReadyToInstall();
   }
 }
 
+bool WifiStationEsp32::changeStateToReadyToInstall() {
+  if (READY_TO_INSTALL == state) {
+    ESP_LOGD(TAG, "Already in a state 'ready to install'.");
+    return false;
+  }
+  if (state != READY_TO_INIT) {
+    ESP_LOGW(TAG, "Not in a state that can be changed to 'ready to install'.");
+    return false;
+  }
+
+  wcregdao->loadInto(&wcreg);
+
+  ESP_LOGI(TAG, "Changing state to 'ready to install'.");
+  state = READY_TO_INSTALL;
+  return true;
+}
+
+// ================
 void WifiStationEsp32::tryToConnect() {
   if (READY_TO_INSTALL == state) {
     install();
@@ -263,7 +156,23 @@ void WifiStationEsp32::tryToConnect() {
 
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
   ESP_ERROR_CHECK(esp_wifi_start());
+}
 
+void WifiStationEsp32::forgetKnownAccessPoints() {
+  ESP_LOGI(TAG, "Forgetting known access points...");
+  while (wcreg.getSize() > 0) {
+    wcreg.rewind()->remove(wcreg.next());
+  }
+  wcregdao->saveFrom(&wcreg);
+  ESP_LOGI(TAG, "DONE: Forgetting known access points.");
+}
+
+// ========[ Wifi events handlers ]========
+// clang-format off
+// ========================[ WHEN trying to get an access point with WPS ]================================
+// clang-format on
+void WifiStationEsp32::handleWifiEventStationStart(void *event_data) {
+  ESP_LOGI(TAG, "WIFI_EVENT_STA_START");
   if (WifiStationLifecycleState::NOT_CONNECTED_AND_IDLE == state ||
       WifiStationLifecycleState::INSTALLED == state) {
     if (wcreg.getSize() > 0) {
@@ -278,11 +187,30 @@ void WifiStationEsp32::tryToConnect() {
   }
 }
 
-// ========[ Wifi events handlers ]========
-void WifiStationEsp32::handleWifiEventStationStart(void *event_data) {
-  ESP_LOGI(TAG, "WIFI_EVENT_STA_START");
+bool WifiStationEsp32::changeStateToTryingKnownAccessPoints() {
+  if (TRYING_KNOWN_ACCESS_POINTS == state) {
+    ESP_LOGD(TAG, "Already in a state 'trying known access points'.");
+    return false;
+  }
+  if (INSTALLED != state && NOT_CONNECTED_AND_IDLE != state) {
+    ESP_LOGW(TAG, "Not in a state that can be changed to 'trying known "
+                  "access points'.");
+    return false;
+  }
+
+  wcreg.rewind();
+
+  ESP_LOGI(TAG, "Changing state to 'trying known access points'.");
+  state = TRYING_KNOWN_ACCESS_POINTS;
+  return true;
 }
 
+// ========================
+void WifiStationEsp32::handleWifiEventStationConnected(void *event_data) {
+  ESP_LOGI(TAG, "WIFI_EVENT_STA_CONNECTED");
+}
+
+// ========================
 void WifiStationEsp32::handleWifiEventStationDisconnected(void *event_data) {
   ESP_LOGI(TAG, "WIFI_EVENT_STA_DISCONNECTED");
   // select next step according to state
@@ -294,7 +222,8 @@ void WifiStationEsp32::handleWifiEventStationDisconnected(void *event_data) {
     }
   } else if (TRYING_WPS == state) {
     if (remainingRetriesForAccessPoint > 0) {
-      ESP_LOGI(TAG, "Try wps again, %d attempt remaining...", remainingRetriesForWps);
+      ESP_LOGI(TAG, "Try wps again, %d attempt remaining...",
+               remainingRetriesForWps);
       tryAgainConnect();
     } else if (0 < wpsCredentialsCount &&
                wpsCredentialsCurrent < wpsCredentialsCount) {
@@ -311,6 +240,36 @@ void WifiStationEsp32::handleWifiEventStationDisconnected(void *event_data) {
   }
 }
 
+bool WifiStationEsp32::tryNextKnownAccessPoints() {
+  WifiCredentials *wc = wcreg.next();
+  ESP_LOGI(TAG, "Connecting to known SSID: %s", wc->getSsid());
+  setupCredentials(wifi_config_known_ap, wc->getSsid(), wc->getKey());
+  ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config_known_ap));
+  esp_wifi_connect();
+  return true;
+}
+
+bool WifiStationEsp32::changeStateToTryingWps() {
+  if (TRYING_WPS == state) {
+    ESP_LOGD(TAG, "Already in a state 'trying wps'.");
+    return false;
+  }
+  if (INSTALLED != state && NOT_CONNECTED_AND_IDLE != state &&
+      DONE_TRYING_KNOWN_ACCESS_POINTS != state) {
+    ESP_LOGW(TAG, "Not in a state that can be changed to 'trying wps.");
+    return false;
+  }
+
+  ESP_LOGI(TAG, "Changing state to 'trying wps'.");
+  state = TRYING_WPS;
+  startWps();
+
+  return true;
+}
+
+// clang-format off
+// ========================[ WHEN successfully got an access point with WPS ]================================
+// clang-format on
 void WifiStationEsp32::handleWifiEventStationWpsEnrolleeSuccess(
     void *event_data) {
   ESP_LOGI(TAG, "WIFI_EVENT_STA_WPS_ER_SUCCESS");
@@ -329,6 +288,18 @@ void WifiStationEsp32::handleWifiEventStationWpsEnrolleeSuccess(
     tryNextWpsAccessPoint();
   } else {
     ESP_LOGI(TAG, "Only one access point, ready to connect.");
+    wifi_config_t config;
+    esp_err_t err = esp_wifi_get_config(WIFI_IF_STA, &config);
+    if (err == ESP_OK) {
+      printf("SSID: %s, PW: %s\n", (char *)config.sta.ssid,
+             (char *)config.sta.password);
+      WifiCredentials newCred =
+          WifiCredentials((uint8_t *)config.sta.ssid,
+                          (uint8_t *)config.sta.password, PRESHAREDKEY);
+      wcregdao->saveFrom(wcreg.put(&newCred));
+    } else {
+      printf("Couldn't get config: %d\n", (int)err);
+    }
   }
   ESP_ERROR_CHECK(esp_wifi_wps_disable());
   esp_wifi_connect();
@@ -356,10 +327,9 @@ void WifiStationEsp32::handleWifiEventStationWpsEnrolleeTimeout(
   }
 }
 
-// ========[ IP events handlers ]========
-//#define esp_ip4_addr_get_byte(ipaddr, idx) (((const
-// uint8_t*)(&(ipaddr)->addr))[idx])
-
+// clang-format off
+// ========================[ WHEN getting an IP address  ]========================
+// clang-format on
 void WifiStationEsp32::handleIpEventGotIp(void *event_data) {
   ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
   ESP_LOGI(TAG, "got ip: " IPSTR, IP2STR(&event->ip_info.ip));
@@ -385,4 +355,79 @@ void WifiStationEsp32::handleIpEventGotIp(void *event_data) {
                                 esp_ip4_addr_get_byte(&event->ip_info.gw, 2),
                                 esp_ip4_addr_get_byte(&event->ip_info.gw, 3)}}};
   notifyGotHostConfiguration(&desc);
+}
+
+bool WifiStationEsp32::changeStateToConnected() {
+  if (CONNECTED == state) {
+    ESP_LOGD(TAG, "Already in a state 'connected'.");
+    return false;
+  }
+  if (TRYING_KNOWN_ACCESS_POINTS != state && TRYING_WPS != state) {
+    ESP_LOGW(TAG, "Not in a state that can be changed to 'connected'.");
+    return false;
+  }
+
+  // update registry of known APs and save it
+  if (TRYING_KNOWN_ACCESS_POINTS == state) {
+    WifiCredentials wc(wifi_config_known_ap.sta.ssid,
+                       wifi_config_known_ap.sta.password, PASSWORD);
+    wcreg.setPreferred(&wc);
+    wcregdao->saveFrom(&wcreg);
+  } else if (TRYING_WPS == state) {
+  }
+
+  ESP_LOGI(TAG, "Changing state to 'connected'.");
+  state = CONNECTED;
+  return true;
+}
+
+// clang-format off
+// ========[ state management (called from everywhere) ]========
+// clang-format on
+
+// called by each `with...` to switch as soon as all necessary components are
+// registered.
+bool WifiStationEsp32::changeStateToReadyToInit() {
+  if (READY_TO_INIT == state) {
+    ESP_LOGD(TAG, "Already in a state 'ready to init'.");
+    return false;
+  }
+  if (state != CREATED) {
+    ESP_LOGW(TAG, "Not in a state that can be changed to 'ready to init'.");
+    return false;
+  }
+  if (nullptr == wcregdao) {
+    ESP_LOGW(TAG, "Cannot be ready to install until wcregdao is defined.");
+    return false;
+  }
+  if (hostConfigurationListeners.empty()) {
+    ESP_LOGW(TAG, "Cannot be ready to install until at least one host "
+                  "configuration listener is registered.");
+    return false;
+  }
+
+  ESP_LOGI(TAG, "Changing state to 'ready to init'.");
+  state = READY_TO_INIT;
+  return true;
+}
+
+bool WifiStationEsp32::changeStateToNotConnectedAndIdle() {
+  if (NOT_CONNECTED_AND_IDLE == state) {
+    ESP_LOGD(TAG, "Already in a state 'not connected and idle'.");
+    return false;
+  }
+  if (READY_TO_INIT == state) {
+    ESP_LOGW(TAG, "Require to have been installed first.");
+    return false;
+  }
+
+  if (wcreg.getSize() == 0) {
+    ESP_ERROR_CHECK(esp_wifi_wps_disable());
+  } else {
+    // TODO ? disable wifi
+  }
+
+  ESP_LOGI(TAG, "Changing state to 'not connected and idle'.");
+  state = NOT_CONNECTED_AND_IDLE;
+  return true;
 }

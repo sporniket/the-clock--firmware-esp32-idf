@@ -43,66 +43,6 @@ enum WifiKeyType {
   PRESHAREDKEY
 };
 
-// clang-format off
-/**
- * @brief Model of a lifecycle of a wifi station.
- * 
- * ```mermaid
-  flowchart TD
-    CREATED -->|add wifi credential dao and listeners| READY_TO_INIT
-    READY_TO_INIT -->|reload wifi credentials| READY_TO_INSTALL
-    READY_TO_INSTALL --> |Install event handlers| INSTALLED
-    INSTALLED --> |Has known access points| TRYING_KNOWN_ACCESS_POINTS
-    INSTALLED --> |Has no known access points| TRYING_WPS
-    TRYING_KNOWN_ACCESS_POINTS --> |No more known access points| DONE_TRYING_KNOWN_ACCESS_POINTS
-    TRYING_KNOWN_ACCESS_POINTS --> |Got connection| CONNECTED
-    DONE_TRYING_KNOWN_ACCESS_POINTS --> NOT_CONNECTED_AND_IDLE
-    TRYING_WPS --> |Got connection| CONNECTED
-    TRYING_WPS --> |No success, can retry| TRYING_WPS
-    TRYING_WPS --> |No success, no more retry| NOT_CONNECTED_AND_IDLE
-    NOT_CONNECTED_AND_IDLE --> |Relauch connection process| TRYING_WPS
-    CONNECTED --> |Lost connection| NOT_CONNECTED_AND_IDLE
- * ```
- */
-enum WifiStationLifecycleState {
-// clang-format on
-  /**
-   * @brief The instance has just been created.
-   */
-  CREATED,
-  /**
-   * @brief The instance is ready to be initialized.
-   */
-  READY_TO_INIT,
-  /**
-   * @brief The known access points credentials are reloaded and ready to use,
-   * ready to install the event handlers.
-   */
-  READY_TO_INSTALL,
-  /**
-   * @brief The event handlers are installed, ready to connect.
-   */
-  INSTALLED,
-  /**
-   * @brief In the process of trying each known access point to get connected.
-   */
-  TRYING_KNOWN_ACCESS_POINTS,
-  /**
-   * @brief Tried each known access point, without success.
-   */
-  DONE_TRYING_KNOWN_ACCESS_POINTS,
-  /**
-   * @brief Trying to connect through wps.
-   */
-  TRYING_WPS,
-  /**
-   * @brief Ready to start, or nothing succeeded, waiting to be told what to do.
-   */
-  NOT_CONNECTED_AND_IDLE,
-  /**
-   * @brief Connected to an access point.
-   */
-  CONNECTED
-};
+#include "WifiStationTypes.hpp"
 
 #endif
